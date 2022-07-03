@@ -3,7 +3,7 @@
 #include "MyProject.hpp"
 
 const std::string MODEL_PATH = "models/museumTri.obj";
-const std::string TEXTURE_PATH = "textures/parquet.jpg";
+const std::string TEXTURE_PATH = "textures/tile.jpg";
 
 // The uniform buffer object used in this example
 struct UniformBufferObject {
@@ -115,33 +115,135 @@ class MyProject : public BaseProject {
 	// Here is where you update the uniforms.
 	// Very likely this will be where you will be writing the logic of your application.
 	void updateUniformBuffer(uint32_t currentImage) {
+
+		//TIME
 		static auto startTime = std::chrono::high_resolution_clock::now();
+		static float lastTime = 0.0f;
+
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>
-					(currentTime - startTime).count();
-					
-					
-		UniformBufferObject ubo{};
-	
-		ubo.model = glm::mat4(1.0f)*0.5f;
-								
-		ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
-							   glm::vec3(0.0f, 0.0f, 0.0f),
-							   glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.proj = glm::perspective(glm::radians(45.0f),
-						swapChainExtent.width / (float) swapChainExtent.height,
-						0.1f, 10.0f);
-		ubo.proj[1][1] *= -1;
+			(currentTime - startTime).count();
+		float deltaT = time - lastTime;
+		lastTime = time;
+
+
+		//PLAYER MOVEMENT VARIABLES
+		const float ROT_SPEED = glm::radians(60.0f);
+		const float MOVE_SPEED = 0.75f;
+		const float MOUSE_RES = 500.0f;
+
+		static double old_xpos = 0, old_ypos = 0;
+		double xpos, ypos;
+
+		//CURSOR POSITION
+		glfwGetCursorPos(window, &xpos, &ypos);
+		double m_dx = xpos - old_xpos;
+		double m_dy = ypos - old_ypos;
+		old_xpos = xpos; old_ypos = ypos;
+
+
+		//CURSOR CAMERA MOVEMENT
+		glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+			CamAng.y += m_dx * ROT_SPEED / MOUSE_RES;	//PITCH
+			CamAng.x += m_dy * ROT_SPEED / MOUSE_RES;	//YAW
+		}
+
+
+		//KEY PRESS MOVEMENT
+		static float debounce = time;
+
+		static bool xray = false;
+
+		if (glfwGetKey(window, GLFW_KEY_X)) {
+			if (time - debounce > 0.33) {
+				xray = !xray;
+				debounce = time;
+			}
+		}
+
+		if (glfwGetKey(window, GLFW_KEY_LEFT)) {
+			CamAng.y += deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_RIGHT)) {
+			CamAng.y -= deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_UP)) {
+			CamAng.x += deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_DOWN)) {
+			CamAng.x -= deltaT * ROT_SPEED;
+		}
+		/*
+		* 		if (glfwGetKey(window, GLFW_KEY_Q)) {
+			CamAng.z -= deltaT * ROT_SPEED;
+		}
+		if (glfwGetKey(window, GLFW_KEY_E)) {
+			CamAng.z += deltaT * ROT_SPEED;
+		}
+		*/
+
+
+		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
+						   glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
+						   glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
+
+
+		if (glfwGetKey(window, GLFW_KEY_A)) {
+			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+		}
+		if (glfwGetKey(window, GLFW_KEY_D)) {
+			CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+		}
+		if (glfwGetKey(window, GLFW_KEY_S)) {
+			CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
+		}
+		if (glfwGetKey(window, GLFW_KEY_W)) {
+			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
+		}
+		if (glfwGetKey(window, GLFW_KEY_F)) {
+			CamPos -= MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
+		}
+		if (glfwGetKey(window, GLFW_KEY_R)) {
+			CamPos += MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
+		}
+
 		
-		void* data;
+
+		UniformBufferObject ubo{};
+
+		//WORLD MATRIX 
+		ubo.model = glm::mat4(1.0f);
+		
+
+		//CAMERA VIEW MATRIX
+		glm::mat4 CamMat = glm::translate(glm::transpose(glm::mat4(CamDir)), -CamPos);
+		ubo.view = CamMat;
+
+		//CAMERA PROJECTION MATRIX 
+		float aspect_ratio = swapChainExtent.width / (float)swapChainExtent.height;
+		glm::mat4 out = glm::perspective(glm::radians(90.0f), aspect_ratio, 0.1f, 100.0f);
+		out[1][1] *= -1;
+		ubo.proj = out;
+
+		//WVP MATRIX  = Project * View * World		Calculated directly inside shader.vert for the position
 
 		// Here is where you actually update your uniforms
+		void* data;
+
 		vkMapMemory(device, DS1.uniformBuffersMemory[0][currentImage], 0,
-							sizeof(ubo), 0, &data);
+			sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, DS1.uniformBuffersMemory[0][currentImage]);
-	}	
+
+	}
+
 };
+
 
 // This is the main: probably you do not need to touch this!
 int main() {
