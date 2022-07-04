@@ -2,8 +2,8 @@
 
 #include "MyProject.hpp"
 
-const std::string MODEL_PATH = "models/museumTri.obj";
-const std::string TEXTURE_PATH = "textures/tile.jpg";
+const std::string MODEL_PATH = "models/museo.obj";
+const std::string TEXTURE_PATH = "textures/All_Textures.png";
 
 // The uniform buffer object used in this example
 struct UniformBufferObject {
@@ -129,7 +129,7 @@ class MyProject : public BaseProject {
 
 		//PLAYER MOVEMENT VARIABLES
 		const float ROT_SPEED = glm::radians(60.0f);
-		const float MOVE_SPEED = 0.75f;
+		const float MOVE_SPEED = 2.75f;
 		const float MOUSE_RES = 500.0f;
 
 		static double old_xpos = 0, old_ypos = 0;
