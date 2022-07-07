@@ -2,7 +2,7 @@
 
 #include "MyProject.hpp"
 
-const std::string MODEL_PATH = "models/museo.obj";
+const std::string MODEL_PATH = "models/museumTri.obj";
 const std::string TEXTURE_PATH = "textures/All_Textures.png";
 
 // The uniform buffer object used in this example
@@ -32,8 +32,8 @@ class MyProject : public BaseProject {
 	// Here you set the main application parameters
 	void setWindowParameters() {
 		// window size, titile and initial background
-		windowWidth = 1700;
-		windowHeight = 1000;
+		windowWidth = 980;
+		windowHeight = 640;
 		windowTitle = "My Project";
 		initialBackgroundColor = {0.0f, 0.0f, 0.0f, 1.0f};
 		
@@ -73,6 +73,9 @@ class MyProject : public BaseProject {
 					{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 					{1, TEXTURE, 0, &T1}
 				});
+
+		// Map
+		loadMap();
 	}
 
 	// Here you destroy all the objects you created!		
@@ -129,11 +132,13 @@ class MyProject : public BaseProject {
 
 		//PLAYER MOVEMENT VARIABLES
 		const float ROT_SPEED = glm::radians(60.0f);
-		const float MOVE_SPEED = 2.75f;
+		const float MOVE_SPEED = 1.0f;
 		const float MOUSE_RES = 500.0f;
 
 		static double old_xpos = 0, old_ypos = 0;
 		double xpos, ypos;
+		// Map
+		glm::vec3 oldCamPos = CamPos;
 
 		//CURSOR POSITION
 		glfwGetCursorPos(window, &xpos, &ypos);
@@ -212,6 +217,24 @@ class MyProject : public BaseProject {
 			CamPos += MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
 		}
 
+		if (!canStep(CamPos.x, CamPos.z)) {
+			//CamPos = oldCamPos;
+		}
+
+		if (CamPos.x < -7.5 || CamPos.x > 1.5) {
+			CamPos = oldCamPos;
+		}
+
+		if (CamPos.z < -1.5 || CamPos.z > 3.5) {
+			CamPos = oldCamPos;
+		}
+
+		if (CamPos.x != oldCamPos.x || CamPos.z != oldCamPos.z) {
+			std::cout << CamPos.x << ' ' << CamPos.y << ' ' << CamPos.z << std::endl;
+		}
+
+
+
 		
 
 		UniformBufferObject ubo{};
@@ -242,6 +265,57 @@ class MyProject : public BaseProject {
 
 	}
 
+
+	// Map
+	stbi_uc* stationMap;
+	int stationMapWidth, stationMapHeight;
+	const float checkRadius = 0.1;
+	const int checkSteps = 12;
+	glm::vec2 oldMapPos = glm::vec2(0, 0);
+	
+
+	void loadMap() {
+		stationMap = stbi_load("textures/museumMap.png",
+			&stationMapWidth, &stationMapHeight,
+			NULL, 1);
+		if (!stationMap) {
+			std::cout << "textures/museumMap.png" << "\n";
+			throw std::runtime_error("failed to load map image!");
+		}
+		std::cout << "Station map -> size: " << stationMapWidth
+			<< "x" << stationMapHeight << "\n";
+	}
+
+	bool canStepPoint(float x, float y) {
+		int pixX = round(((x+7.5f)/9.0f)*861+252+270);
+		int pixY = ((stationMapHeight - 160*2) - round(((y + 1.5f) / 5.0f) * 265 + 455)) + 160;
+		//int pixX = round(fmax(0.0f, fmin(stationMapWidth - 1, (x + 10) * stationMapWidth / 20.0)));
+		//int pixY = round(fmax(0.0f, fmin(stationMapHeight - 1, (y + 10) * stationMapHeight / 20.0)));
+
+		int pix = (int)stationMap[stationMapWidth * pixY + pixX];
+
+		if ((int)oldMapPos.x != pixX || (int)oldMapPos.y != pixY) {
+			std::cout << pixX << " " << pixY << " " << x << " " << y << " \t P = " << pix << "\n";
+			if (pix == 0) {
+				std::cout << "HIT!" << std::endl;
+			}
+		}
+
+		oldMapPos.x = pixX;
+		oldMapPos.y = pixY;
+		
+		return pix != 0;
+	}
+	
+	bool canStep(float x, float y) {
+		for (int i = 0; i < checkSteps; i++) {
+			if (!canStepPoint(x + cos(6.2832 * i / (float)checkSteps) * checkRadius,
+				y + sin(6.2832 * i / (float)checkSteps) * checkRadius)) {
+				return false;
+			}
+		}
+		return true;
+	}
 };
 
 
