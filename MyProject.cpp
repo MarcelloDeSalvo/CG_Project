@@ -2,13 +2,8 @@
 
 #include "MyProject.hpp"
 
-<<<<<<< HEAD
-const std::string MODEL_PATH = "models/museumTri.obj";
-const std::string TEXTURE_PATH = "textures/All_Textures.png";
-=======
 const std::string MODEL_PATH = "models/museo_prof.obj";
 const std::string TEXTURE_PATH = "textures/museumLayout.jpg";
->>>>>>> 6ea1104c72205545e90989369dd84b950b7aaebd
 
 // The uniform buffer object used in this example
 struct UniformBufferObject {
@@ -223,16 +218,16 @@ class MyProject : public BaseProject {
 		}
 
 		if (!canStep(CamPos.x, CamPos.z)) {
-			//CamPos = oldCamPos;
+			CamPos = oldCamPos;
 		}
 
-		if (CamPos.x < -7.5 || CamPos.x > 1.5) {
+		/*if (CamPos.x < -7.5 || CamPos.x > 1.5) {
 			CamPos = oldCamPos;
 		}
 
 		if (CamPos.z < -1.5 || CamPos.z > 3.5) {
 			CamPos = oldCamPos;
-		}
+		}*/
 
 		if (CamPos.x != oldCamPos.x || CamPos.z != oldCamPos.z) {
 			std::cout << CamPos.x << ' ' << CamPos.y << ' ' << CamPos.z << std::endl;
@@ -280,7 +275,7 @@ class MyProject : public BaseProject {
 	
 
 	void loadMap() {
-		stationMap = stbi_load("textures/museumMap.png",
+		stationMap = stbi_load("textures/museumMapNoOff.png",
 			&stationMapWidth, &stationMapHeight,
 			NULL, 1);
 		if (!stationMap) {
@@ -292,10 +287,8 @@ class MyProject : public BaseProject {
 	}
 
 	bool canStepPoint(float x, float y) {
-		int pixX = round(((x+7.5f)/9.0f)*861+252+270);
-		int pixY = ((stationMapHeight - 160*2) - round(((y + 1.5f) / 5.0f) * 265 + 455)) + 160;
-		//int pixX = round(fmax(0.0f, fmin(stationMapWidth - 1, (x + 10) * stationMapWidth / 20.0)));
-		//int pixY = round(fmax(0.0f, fmin(stationMapHeight - 1, (y + 10) * stationMapHeight / 20.0)));
+		int pixX = stationMapWidth - round(fmax(0.0f, fmin(stationMapWidth - 1, (-x/9.0f) * stationMapWidth)));
+		int pixY = round(fmax(0.0f, fmin(stationMapHeight - 1, (y/5.0f) * stationMapHeight)));
 
 		int pix = (int)stationMap[stationMapWidth * pixY + pixX];
 

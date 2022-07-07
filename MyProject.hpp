@@ -290,7 +290,7 @@ protected:
 
 	//CAMERA
 	glm::vec3 CamAng = glm::vec3(0.0f);	//YAW, PITCH, ROLL
-	glm::vec3 CamPos = glm::vec3(0.0f, 1.5f, 0.0f);
+	glm::vec3 CamPos = glm::vec3(0.0f, 0.7f, 0.0f);
 
 	// Lesson 12
     GLFWwindow* window;
