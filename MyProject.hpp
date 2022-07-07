@@ -211,6 +211,21 @@ struct Texture {
 	void cleanup();
 };
 
+//TESTI -----------------------------------------------
+struct SingleText {
+	int usedLines;
+	const char* l[4];
+	int start;
+	int len;
+};
+
+std::vector<SingleText> SceneText = {
+		{1, {"First Person View", "", "", ""}, 0, 0},
+		{1, {"Third Person View", "", "", ""}, 0, 0},
+		{1, {"Top View", "", "", ""}, 0, 0},
+		{1, {"Hidden Impostor View", "", "", ""}, 0, 0}
+};
+
 struct DescriptorSetLayoutBinding {
 	uint32_t binding;
 	VkDescriptorType type;
