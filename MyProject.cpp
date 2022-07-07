@@ -2,8 +2,13 @@
 
 #include "MyProject.hpp"
 
+<<<<<<< HEAD
 const std::string MODEL_PATH = "models/museumTri.obj";
 const std::string TEXTURE_PATH = "textures/All_Textures.png";
+=======
+const std::string MODEL_PATH = "models/museo_prof.obj";
+const std::string TEXTURE_PATH = "textures/museumLayout.jpg";
+>>>>>>> 6ea1104c72205545e90989369dd84b950b7aaebd
 
 // The uniform buffer object used in this example
 struct UniformBufferObject {
