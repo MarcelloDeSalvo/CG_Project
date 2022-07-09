@@ -1,9 +1,15 @@
 // This has been adapted from the Vulkan tutorial
 
 #include "MyProject.hpp"
+#define W_WIDTH 980
+#define W_HEIGHT 640
+
 
 const std::string MODEL_PATH = "models/museo_prof.obj";
 const std::string TEXTURE_PATH = "textures/museumLayout.jpg";
+
+const std::string F_MODEL_PATH = "models/cube_With_Material.obj";
+const std::string FONT_PATH = "textures/wall.jpg";
 
 // The uniform buffer object used in this example
 struct UniformBufferObject {
@@ -11,6 +17,7 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
 };
+
 
 
 // MAIN ! 
@@ -28,62 +35,98 @@ class MyProject : public BaseProject {
 	Model M1;
 	Texture T1;
 	DescriptorSet DS1;
+
+	// Text pipeline
+	Pipeline PT;
+
+	Model MT;
+	Texture TT;
+	DescriptorSet DST;
+	//VertexDescriptor textVertexDescriptor = VertexDescriptor(true, false, true, false, false);
+	//int curText = 0;
+	
 	
 	// Here you set the main application parameters
 	void setWindowParameters() {
 		// window size, titile and initial background
-		windowWidth = 980;
-		windowHeight = 640;
+		windowWidth = W_WIDTH;
+		windowHeight = W_HEIGHT;
 		windowTitle = "My Project";
 		initialBackgroundColor = {0.0f, 0.0f, 0.0f, 1.0f};
 		
-		// Descriptor pool sizes
-		uniformBlocksInPool = 1;
-		texturesInPool = 1;
-		setsInPool = 1;
+		// Descriptor pool sizes ---------------------------------------------------------------------IMPORTANTE CAMBIARE QUI
+		uniformBlocksInPool = 2;
+		texturesInPool = 2;
+		setsInPool = 2;
 	}
 	
 	// Here you load and setup all your Vulkan objects
 	void localInit() {
 		// Descriptor Layouts [what will be passed to the shaders]
 		DSL1.init(this, {
-					// this array contains the binding:
-					// first  element : the binding number
-					// second element : the time of element (buffer or texture)
-					// third  element : the pipeline stage where it will be used
-					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
-					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
-				  });
+			// this array contains the binding:
+			// first  element : the binding number
+			// second element : the time of element (buffer or texture)
+			// third  element : the pipeline stage where it will be used
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
+			});
 
 		// Pipelines [Shader couples]
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
-		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", {&DSL1});
-
+		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSL1 });
 		// Models, textures and Descriptors (values assigned to the uniforms)
 		M1.init(this, MODEL_PATH);
 		T1.init(this, TEXTURE_PATH);
 		DS1.init(this, &DSL1, {
-		// the second parameter, is a pointer to the Uniform Set Layout of this set
-		// the last parameter is an array, with one element per binding of the set.
-		// first  elmenet : the binding number
-		// second element : UNIFORM or TEXTURE (an enum) depending on the type
-		// third  element : only for UNIFORMs, the size of the corresponding C++ object
-		// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
-					{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-					{1, TEXTURE, 0, &T1}
-				});
+			// the second parameter, is a pointer to the Uniform Set Layout of this set
+			// the last parameter is an array, with one element per binding of the set.
+			// first  elmenet : the binding number
+			// second element : UNIFORM or TEXTURE (an enum) depending on the type
+			// third  element : only for UNIFORMs, the size of the corresponding C++ object
+			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
+						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+						{1, TEXTURE, 0, &T1}
+			});
 
-		// Map
+
+		// TEXT PIPELINE
+		PT.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSL1 });
+		//PT.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSL1 }, textVertexDescriptor);
+		MT.init(this, F_MODEL_PATH);
+		TT.init(this, FONT_PATH);
+		DST.init(this, &DSL1, {
+			// the second parameter, is a pointer to the Uniform Set Layout of this set
+			// the last parameter is an array, with one element per binding of the set.
+			// first  elmenet : the binding number
+			// second element : UNIFORM or TEXTURE (an enum) depending on the type
+			// third  element : only for UNIFORMs, the size of the corresponding C++ object
+			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
+						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+						{1, TEXTURE, 0, &TT}
+			});
+
+		//MAP
 		loadMap();
+
+		
 	}
 
 	// Here you destroy all the objects you created!		
 	void localCleanup() {
+		//MAIN
 		DS1.cleanup();
 		T1.cleanup();
 		M1.cleanup();
 		P1.cleanup();
+		
+		//TEXT
+		PT.cleanup();
+		TT.cleanup();
+		MT.cleanup();
+		DST.cleanup();
+	
 		DSL1.cleanup();
 	}
 	
@@ -91,7 +134,7 @@ class MyProject : public BaseProject {
 	// You send to the GPU all the objects you want to draw,
 	// with their buffers and textures
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
-				
+	
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 				P1.graphicsPipeline);
 				
@@ -113,6 +156,25 @@ class MyProject : public BaseProject {
 		// property .indices.size() of models, contains the number of triangles * 3 of the mesh.
 		vkCmdDrawIndexed(commandBuffer,
 					static_cast<uint32_t>(M1.indices.size()), 1, 0, 0, 0);
+		
+
+
+		//TEXT PIPELINE BINDING-----------------------------------------------------------------------------------------------------------------
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PT.graphicsPipeline);
+		VkBuffer TvertexBuffers[] = { MT.vertexBuffer };
+		VkDeviceSize Toffsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, TvertexBuffers, Toffsets);
+		vkCmdBindIndexBuffer(commandBuffer, MT.indexBuffer, 0,
+			VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			PT.pipelineLayout, 0, 1, &DST.descriptorSets[currentImage],
+			0, nullptr);
+		
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MT.indices.size()), 1, 0, 0, 0);
+		
+
 	}
 
 	// Here is where you update the uniforms.
@@ -139,6 +201,7 @@ class MyProject : public BaseProject {
 		double xpos, ypos;
 		// Map
 		glm::vec3 oldCamPos = CamPos;
+		float aspect_ratio = swapChainExtent.width / (float)swapChainExtent.height;
 
 		//CURSOR POSITION
 		glfwGetCursorPos(window, &xpos, &ypos);
@@ -146,6 +209,13 @@ class MyProject : public BaseProject {
 		double m_dy = ypos - old_ypos;
 		old_xpos = xpos; old_ypos = ypos;
 
+		//UBO
+		UniformBufferObject ubo_UI{};
+		ubo_UI.model = glm::mat4(1);
+		ubo_UI.proj = glm::ortho(-2.0f, 2.0f, -2.0f / aspect_ratio, 2.0f / aspect_ratio, -0.1f, 12.0f);
+		ubo_UI.view = glm::mat4(1.0f);
+
+		UniformBufferObject ubo{};
 
 		//CURSOR CAMERA MOVEMENT
 		glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
@@ -165,6 +235,11 @@ class MyProject : public BaseProject {
 				xray = !xray;
 				debounce = time;
 			}
+		}
+
+
+		if (!glfwGetKey(window, GLFW_KEY_SPACE)) {
+			ubo_UI.model = glm::translate(glm::mat4(1), glm::vec3(200, 1, 1));
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_LEFT)) {
@@ -232,12 +307,9 @@ class MyProject : public BaseProject {
 		if (CamPos.x != oldCamPos.x || CamPos.z != oldCamPos.z) {
 			std::cout << CamPos.x << ' ' << CamPos.y << ' ' << CamPos.z << std::endl;
 		}
-
-
-
 		
 
-		UniformBufferObject ubo{};
+		
 
 		//WORLD MATRIX 
 		ubo.model = glm::mat4(1.0f);
@@ -248,12 +320,12 @@ class MyProject : public BaseProject {
 		ubo.view = CamMat;
 
 		//CAMERA PROJECTION MATRIX 
-		float aspect_ratio = swapChainExtent.width / (float)swapChainExtent.height;
 		glm::mat4 out = glm::perspective(glm::radians(90.0f), aspect_ratio, 0.1f, 100.0f);
 		out[1][1] *= -1;
 		ubo.proj = out;
 
 		//WVP MATRIX  = Project * View * World		Calculated directly inside shader.vert for the position
+
 
 		// Here is where you actually update your uniforms
 		void* data;
@@ -262,6 +334,12 @@ class MyProject : public BaseProject {
 			sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, DS1.uniformBuffersMemory[0][currentImage]);
+
+
+		vkMapMemory(device, DST.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(ubo_UI), 0, &data);
+		memcpy(data, &ubo_UI, sizeof(ubo_UI));
+		vkUnmapMemory(device, DST.uniformBuffersMemory[0][currentImage]);
 
 	}
 
