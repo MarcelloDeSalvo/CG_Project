@@ -1,15 +1,21 @@
 // This has been adapted from the Vulkan tutorial
 
 #include "MyProject.hpp"
-#define W_WIDTH 980
-#define W_HEIGHT 640
+#define W_WIDTH 1700
+#define W_HEIGHT 1200
 
 
 const std::string MODEL_PATH = "models/museo_prof.obj";
 const std::string TEXTURE_PATH = "textures/museumLayout.jpg";
 
-const std::string F_MODEL_PATH = "models/cube_With_Material.obj";
-const std::string FONT_PATH = "textures/wall.jpg";
+const std::string CARD_MODEL_PATH = "models/card.obj";
+
+const std::vector<std::string> CARD_TEXTURE_PATH = {
+	"textures/Painting1.png",
+	"textures/wall.jpg",
+	"textures/parquet.jpg", 
+	"textures/tile.jpg"
+};
 
 // The uniform buffer object used in this example
 struct UniformBufferObject {
@@ -18,7 +24,12 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 proj;
 };
 
-
+struct UniformBufferObjectCard {
+	alignas(16) glm::mat4 model;
+	alignas(16) glm::mat4 view;
+	alignas(16) glm::mat4 proj;
+	alignas(4) int textureID;
+};
 
 // MAIN ! 
 class MyProject : public BaseProject {
@@ -27,6 +38,7 @@ class MyProject : public BaseProject {
 	
 	// Descriptor Layouts [what will be passed to the shaders]
 	DescriptorSetLayout DSL1;
+	DescriptorSetLayout DSLCard;
 
 	// Pipelines [Shader couples]
 	Pipeline P1;
@@ -36,14 +48,14 @@ class MyProject : public BaseProject {
 	Texture T1;
 	DescriptorSet DS1;
 
-	// Text pipeline
-	Pipeline PT;
+	// Card pipeline
+	Pipeline PC;
 
-	Model MT;
-	Texture TT;
-	DescriptorSet DST;
-	//VertexDescriptor textVertexDescriptor = VertexDescriptor(true, false, true, false, false);
-	//int curText = 0;
+	Model MC;
+	Texture TC[TEXTURE_ARRAY_SIZE];
+	Texture CardSampler;
+	DescriptorSet DSC;
+	int id = 0;
 	
 	
 	// Here you set the main application parameters
@@ -56,7 +68,7 @@ class MyProject : public BaseProject {
 		
 		// Descriptor pool sizes ---------------------------------------------------------------------IMPORTANTE CAMBIARE QUI
 		uniformBlocksInPool = 2;
-		texturesInPool = 2;
+		texturesInPool = 5;
 		setsInPool = 2;
 	}
 	
@@ -68,8 +80,19 @@ class MyProject : public BaseProject {
 			// first  element : the binding number
 			// second element : the time of element (buffer or texture)
 			// third  element : the pipeline stage where it will be used
-			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
-			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT,1},
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT,1}
+			});
+
+		DSLCard.init(this, {
+			// this array contains the binding:
+			// first  element : the binding number
+			// second element : the time of element (buffer or texture)
+			// third  element : the pipeline stage where it will be used
+			// fourth  element : #descriptorCount
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1},
+			{1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, TEXTURE_ARRAY_SIZE},
+			{2, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1}
 			});
 
 		// Pipelines [Shader couples]
@@ -91,20 +114,24 @@ class MyProject : public BaseProject {
 			});
 
 
-		// TEXT PIPELINE
-		PT.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSL1 });
+		// CARD PIPELINE
+		PC.init(this, "shaders/CardVert.spv", "shaders/CardFrag.spv", { &DSLCard });
 		//PT.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSL1 }, textVertexDescriptor);
-		MT.init(this, F_MODEL_PATH);
-		TT.init(this, FONT_PATH);
-		DST.init(this, &DSL1, {
+		MC.init(this, CARD_MODEL_PATH);
+		for (int i= 0; i < TEXTURE_ARRAY_SIZE; i++) {
+			TC[i].init(this, CARD_TEXTURE_PATH[i]);
+		}
+		CardSampler.init(this, TEXTURE_PATH); //We'll only need the sampler of this Texture struct
+		DSC.init(this, &DSLCard, {
 			// the second parameter, is a pointer to the Uniform Set Layout of this set
 			// the last parameter is an array, with one element per binding of the set.
 			// first  elmenet : the binding number
 			// second element : UNIFORM or TEXTURE (an enum) depending on the type
 			// third  element : only for UNIFORMs, the size of the corresponding C++ object
 			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
-						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-						{1, TEXTURE, 0, &TT}
+						{0, UNIFORM, sizeof(UniformBufferObjectCard), nullptr},
+						{1, TEXTURE_ARRAY, 0, TC},
+						{2, SAMPLER, 0, &CardSampler}
 			});
 
 		//MAP
@@ -122,12 +149,15 @@ class MyProject : public BaseProject {
 		P1.cleanup();
 		
 		//TEXT
-		PT.cleanup();
-		TT.cleanup();
-		MT.cleanup();
-		DST.cleanup();
+		PC.cleanup();
+		for (int i = 0; i < TEXTURE_ARRAY_SIZE; i++) {
+			TC[i].cleanup();
+		}
+		MC.cleanup();
+		DSC.cleanup();
 	
 		DSL1.cleanup();
+		DSLCard.cleanup();
 	}
 	
 	// Here it is the creation of the command buffer:
@@ -159,20 +189,21 @@ class MyProject : public BaseProject {
 		
 
 
-		//TEXT PIPELINE BINDING-----------------------------------------------------------------------------------------------------------------
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PT.graphicsPipeline);
-		VkBuffer TvertexBuffers[] = { MT.vertexBuffer };
+		//CARD UI PIPELINE BINDING-----------------------------------------------------------------------------------------------------------------
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PC.graphicsPipeline);
+
+		VkBuffer TvertexBuffers[] = { MC.vertexBuffer };
 		VkDeviceSize Toffsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, TvertexBuffers, Toffsets);
-		vkCmdBindIndexBuffer(commandBuffer, MT.indexBuffer, 0,
+		vkCmdBindIndexBuffer(commandBuffer, MC.indexBuffer, 0,
 			VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			PT.pipelineLayout, 0, 1, &DST.descriptorSets[currentImage],
+			PC.pipelineLayout, 0, 1, &DSC.descriptorSets[currentImage],
 			0, nullptr);
-		
+
 		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(MT.indices.size()), 1, 0, 0, 0);
+			static_cast<uint32_t>(MC.indices.size()), 1, 0, 0, 0);
 		
 
 	}
@@ -210,10 +241,12 @@ class MyProject : public BaseProject {
 		old_xpos = xpos; old_ypos = ypos;
 
 		//UBO
-		UniformBufferObject ubo_UI{};
-		ubo_UI.model = glm::mat4(1);
-		ubo_UI.proj = glm::ortho(-2.0f, 2.0f, -2.0f / aspect_ratio, 2.0f / aspect_ratio, -0.1f, 12.0f);
+		UniformBufferObjectCard ubo_UI{};
+		ubo_UI.model = glm::mat4(1.0f);
+		//ubo_UI.proj = glm::ortho(-2.0f, 2.0f, -2.0f / aspect_ratio, 2.0f / aspect_ratio, -0.1f, 12.0f);
+		ubo_UI.proj = glm::perspective(glm::radians(90.0f), aspect_ratio, 0.1f, 100.0f);
 		ubo_UI.view = glm::mat4(1.0f);
+		ubo_UI.textureID = id;
 
 		UniformBufferObject ubo{};
 
@@ -234,12 +267,24 @@ class MyProject : public BaseProject {
 			if (time - debounce > 0.33) {
 				xray = !xray;
 				debounce = time;
+				id++;
 			}
 		}
 
+		if (glfwGetKey(window, GLFW_KEY_C)) {
+			if (time - debounce > 0.33) {
+				xray = !xray;
+				debounce = time;
+				if(id!=0)
+					id--;
+			}
 
+		}
+
+		
 		if (!glfwGetKey(window, GLFW_KEY_SPACE)) {
 			ubo_UI.model = glm::translate(glm::mat4(1), glm::vec3(200, 1, 1));
+			
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_LEFT)) {
@@ -309,8 +354,6 @@ class MyProject : public BaseProject {
 		}
 		
 
-		
-
 		//WORLD MATRIX 
 		ubo.model = glm::mat4(1.0f);
 		
@@ -329,17 +372,16 @@ class MyProject : public BaseProject {
 
 		// Here is where you actually update your uniforms
 		void* data;
-
 		vkMapMemory(device, DS1.uniformBuffersMemory[0][currentImage], 0,
 			sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, DS1.uniformBuffersMemory[0][currentImage]);
 
 
-		vkMapMemory(device, DST.uniformBuffersMemory[0][currentImage], 0,
+		vkMapMemory(device, DSC.uniformBuffersMemory[0][currentImage], 0,
 			sizeof(ubo_UI), 0, &data);
 		memcpy(data, &ubo_UI, sizeof(ubo_UI));
-		vkUnmapMemory(device, DST.uniformBuffersMemory[0][currentImage]);
+		vkUnmapMemory(device, DSC.uniformBuffersMemory[0][currentImage]);
 
 	}
 
