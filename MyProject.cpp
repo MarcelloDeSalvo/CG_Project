@@ -243,8 +243,7 @@ class MyProject : public BaseProject {
 		//UBO
 		UniformBufferObjectCard ubo_UI{};
 		ubo_UI.model = glm::mat4(1.0f);
-		//ubo_UI.proj = glm::ortho(-2.0f, 2.0f, -2.0f / aspect_ratio, 2.0f / aspect_ratio, -0.1f, 12.0f);
-		ubo_UI.proj = glm::perspective(glm::radians(90.0f), aspect_ratio, 0.1f, 100.0f);
+		ubo_UI.proj = glm::ortho(-2.0f, 2.0f, -2.0f / aspect_ratio, 2.0f / aspect_ratio, -0.1f, 12.0f);
 		ubo_UI.view = glm::mat4(1.0f);
 		ubo_UI.textureID = id;
 
