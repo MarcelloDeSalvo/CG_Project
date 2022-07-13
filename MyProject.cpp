@@ -9,6 +9,15 @@
 const std::string MODEL_PATH = "models/museo_prof.obj";
 const std::string TEXTURE_PATH = "textures/museumLayout.jpg";
 
+// Mountains
+const std::string MODEL_MOUNTAIN = "models/3dmountains.obj";
+const std::string TEXTURE_MOUNTAIN = "textures/MyGrid.png";
+
+// Statue
+const std::string MODEL_STATUE = "models/Venus.obj";
+const std::string TEXTURE_STATUE = "textures/marble.png";
+
+
 const std::string CARD_MODEL_PATH = "models/card.obj";
 
 const std::vector<std::string> CARD_TEXTURE_PATH = {
@@ -50,6 +59,16 @@ class MyProject : public BaseProject {
 	Texture T1;
 	DescriptorSet DS1;
 
+	// Mountain
+	Model mountainModel;
+	Texture mountainTexture;
+	DescriptorSet mountainDS;
+
+	// Statue
+	Model statueModel;
+	Texture statueTexture;
+	DescriptorSet statueDS;
+
 	// Card pipeline
 	Pipeline PC;
 
@@ -69,9 +88,9 @@ class MyProject : public BaseProject {
 		initialBackgroundColor = {0.0f, 0.0f, 0.0f, 1.0f};
 		
 		// Descriptor pool sizes ---------------------------------------------------------------------IMPORTANTE CAMBIARE QUI
-		uniformBlocksInPool = 2;
-		texturesInPool = 6;
-		setsInPool = 2;
+		uniformBlocksInPool = 4;
+		texturesInPool = 8;
+		setsInPool = 4;
 	}
 	
 	// Here you load and setup all your Vulkan objects
@@ -115,6 +134,22 @@ class MyProject : public BaseProject {
 			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
 						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 						{1, TEXTURE, 0, &T1}
+			});
+
+		// Mountain
+		mountainModel.init(this, MODEL_MOUNTAIN);
+		mountainTexture.init(this, TEXTURE_MOUNTAIN);
+		mountainDS.init(this, &DSL1, {
+				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+				{1, TEXTURE, 0, &mountainTexture}
+			});
+
+		// Statue
+		statueModel.init(this, MODEL_STATUE);
+		statueTexture.init(this, TEXTURE_STATUE);
+		statueDS.init(this, &DSL1, {
+				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+				{1, TEXTURE, 0, &statueTexture}
 			});
 
 
@@ -161,11 +196,24 @@ class MyProject : public BaseProject {
 
 	// Here you destroy all the objects you created!		
 	void localCleanup() {
+		// Mountain
+		mountainDS.cleanup();
+		mountainTexture.cleanup();
+		mountainModel.cleanup();
+
+		// Statue
+		statueDS.cleanup();
+		statueTexture.cleanup();
+		statueModel.cleanup();
+
 		//MAIN
 		DS1.cleanup();
 		T1.cleanup();
 		M1.cleanup();
 		P1.cleanup();
+
+
+
 		
 		//TEXT
 		PC.cleanup();
@@ -206,7 +254,32 @@ class MyProject : public BaseProject {
 		// property .indices.size() of models, contains the number of triangles * 3 of the mesh.
 		vkCmdDrawIndexed(commandBuffer,
 					static_cast<uint32_t>(M1.indices.size()), 1, 0, 0, 0);
-		
+
+		// Mountain
+		VkBuffer vertexBuffersM[] = { mountainModel.vertexBuffer };
+		VkDeviceSize offsetsM[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersM, offsetsM);
+		vkCmdBindIndexBuffer(commandBuffer, mountainModel.indexBuffer, 0,
+			VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P1.pipelineLayout, 0, 1, &mountainDS.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(mountainModel.indices.size()), 1, 0, 0, 0);
+
+		// Statue
+		VkBuffer vertexBuffersS[] = { statueModel.vertexBuffer };
+		VkDeviceSize offsetsS[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersS, offsetsS);
+		vkCmdBindIndexBuffer(commandBuffer, statueModel.indexBuffer, 0,
+			VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P1.pipelineLayout, 0, 1, &statueDS.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(statueModel.indices.size()), 1, 0, 0, 0);
 
 
 		//CARD UI PIPELINE BINDING-----------------------------------------------------------------------------------------------------------------
@@ -266,6 +339,7 @@ class MyProject : public BaseProject {
 		ubo_UI.proj = glm::ortho(-2.0f, 2.0f, -2.0f / aspect_ratio, 2.0f / aspect_ratio, -0.1f, 12.0f);
 		ubo_UI.view = glm::mat4(1.0f);
 		ubo_UI.textureID = textId;
+
 
 		UniformBufferObject ubo{};
 
@@ -379,6 +453,18 @@ class MyProject : public BaseProject {
 
 		//WVP MATRIX  = Project * View * World		Calculated directly inside shader.vert for the position
 
+		// Mountain
+		UniformBufferObject mountainUbo;
+		mountainUbo.model = glm::mat4(1.0f);
+		mountainUbo.view = CamMat;
+		mountainUbo.proj = out;
+
+		// Statue
+		UniformBufferObject statueUbo;
+		statueUbo.model = glm::mat4(1.0f);
+		statueUbo.view = CamMat;
+		statueUbo.proj = out;
+
 
 		// Here is where you actually update your uniforms
 		void* data;
@@ -387,11 +473,24 @@ class MyProject : public BaseProject {
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, DS1.uniformBuffersMemory[0][currentImage]);
 
+		// Mountain
+		vkMapMemory(device, mountainDS.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(mountainUbo), 0, &data);
+		memcpy(data, &mountainUbo, sizeof(mountainUbo));
+		vkUnmapMemory(device, mountainDS.uniformBuffersMemory[0][currentImage]);
+
+		// Statue
+		vkMapMemory(device, statueDS.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(statueUbo), 0, &data);
+		memcpy(data, &statueUbo, sizeof(statueUbo));
+		vkUnmapMemory(device, statueDS.uniformBuffersMemory[0][currentImage]);
+
 
 		vkMapMemory(device, DSC.uniformBuffersMemory[0][currentImage], 0,
 			sizeof(ubo_UI), 0, &data);
 		memcpy(data, &ubo_UI, sizeof(ubo_UI));
 		vkUnmapMemory(device, DSC.uniformBuffersMemory[0][currentImage]);
+
 
 	}
 
