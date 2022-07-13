@@ -1,6 +1,7 @@
 // This has been adapted from the Vulkan tutorial
 
 #include "MyProject.hpp"
+#include <unordered_map>
 #define W_WIDTH 1700
 #define W_HEIGHT 1200
 
@@ -35,7 +36,8 @@ struct UniformBufferObjectCard {
 class MyProject : public BaseProject {
 	protected:
 	// Here you list all the Vulkan objects you need:
-	
+	std::unordered_map<int, int> pixel_map;
+
 	// Descriptor Layouts [what will be passed to the shaders]
 	DescriptorSetLayout DSL1;
 	DescriptorSetLayout DSLCard;
@@ -55,7 +57,7 @@ class MyProject : public BaseProject {
 	Texture TC[TEXTURE_ARRAY_SIZE];
 	Texture CardSampler;
 	DescriptorSet DSC;
-	int id = 0;
+	int pix = 0, textId = 0;
 	
 	
 	// Here you set the main application parameters
@@ -68,12 +70,14 @@ class MyProject : public BaseProject {
 		
 		// Descriptor pool sizes ---------------------------------------------------------------------IMPORTANTE CAMBIARE QUI
 		uniformBlocksInPool = 2;
-		texturesInPool = 5;
+		texturesInPool = 6;
 		setsInPool = 2;
 	}
 	
 	// Here you load and setup all your Vulkan objects
 	void localInit() {
+		loadPixelMap();
+
 		// Descriptor Layouts [what will be passed to the shaders]
 		DSL1.init(this, {
 			// this array contains the binding:
@@ -140,6 +144,21 @@ class MyProject : public BaseProject {
 		
 	}
 
+	void loadPixelMap() {
+		pixel_map[21] = 0;
+		pixel_map[42] = 1;
+		pixel_map[63] = 2;
+		pixel_map[84] = 3;
+		pixel_map[105] = 4;
+		pixel_map[126] = 5;
+		pixel_map[147] = 6;
+		pixel_map[168] = 7;
+		pixel_map[189] = 8;
+		pixel_map[210] = 9;
+		pixel_map[231] = 10;
+
+	}
+
 	// Here you destroy all the objects you created!		
 	void localCleanup() {
 		//MAIN
@@ -153,9 +172,10 @@ class MyProject : public BaseProject {
 		for (int i = 0; i < TEXTURE_ARRAY_SIZE; i++) {
 			TC[i].cleanup();
 		}
+
 		MC.cleanup();
 		DSC.cleanup();
-	
+		CardSampler.cleanup();
 		DSL1.cleanup();
 		DSLCard.cleanup();
 	}
@@ -242,10 +262,10 @@ class MyProject : public BaseProject {
 
 		//UBO
 		UniformBufferObjectCard ubo_UI{};
-		ubo_UI.model = glm::mat4(1.0f);
+		ubo_UI.model = glm::translate(glm::mat4(1), glm::vec3(200, 1, 1));
 		ubo_UI.proj = glm::ortho(-2.0f, 2.0f, -2.0f / aspect_ratio, 2.0f / aspect_ratio, -0.1f, 12.0f);
 		ubo_UI.view = glm::mat4(1.0f);
-		ubo_UI.textureID = id;
+		ubo_UI.textureID = textId;
 
 		UniformBufferObject ubo{};
 
@@ -266,24 +286,15 @@ class MyProject : public BaseProject {
 			if (time - debounce > 0.33) {
 				xray = !xray;
 				debounce = time;
-				id++;
+				
 			}
-		}
-
-		if (glfwGetKey(window, GLFW_KEY_C)) {
-			if (time - debounce > 0.33) {
-				xray = !xray;
-				debounce = time;
-				if(id!=0)
-					id--;
-			}
-
 		}
 
 		
-		if (!glfwGetKey(window, GLFW_KEY_SPACE)) {
-			ubo_UI.model = glm::translate(glm::mat4(1), glm::vec3(200, 1, 1));
-			
+		if (glfwGetKey(window, GLFW_KEY_SPACE) && pix!=255 && pix!=0) {
+			ubo_UI.model = glm::mat4(1);
+			if(pixel_map[pix]<CARD_TEXTURE_PATH.size())
+				textId = pixel_map[pix];
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_LEFT)) {
@@ -409,7 +420,7 @@ class MyProject : public BaseProject {
 		int pixX = stationMapWidth - round(fmax(0.0f, fmin(stationMapWidth - 1, (-x/9.0f) * stationMapWidth)));
 		int pixY = round(fmax(0.0f, fmin(stationMapHeight - 1, (y/5.0f) * stationMapHeight)));
 
-		int pix = (int)stationMap[stationMapWidth * pixY + pixX];
+		pix = (int)stationMap[stationMapWidth * pixY + pixX];
 
 		if ((int)oldMapPos.x != pixX || (int)oldMapPos.y != pixY) {
 			std::cout << pixX << " " << pixY << " " << x << " " << y << " \t P = " << pix << "\n";
