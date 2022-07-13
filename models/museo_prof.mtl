@@ -1,5 +1,5 @@
-# Blender 3.2.0 MTL File: 'museo_prof.blend'
-# www.blender.org
+# Blender MTL File: 'museo_prof_pulito_2.blend'
+# Material Count: 13
 
 newmtl material_0
 Ns 250.000000
@@ -10,7 +10,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd C:/Users/marce/Desktop/Computer Graphics/Assets01-05/03-museum/Seurat_a_sunday.png
+map_Kd C:\\Users\\marce\\Desktop\\Computer Graphics\\Assets01-05\\03-museum\\Seurat_a_sunday.png
 
 newmtl material_1
 Ns 250.000000
@@ -21,7 +21,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd C:/Users/marce/Desktop/Computer Graphics/Assets01-05/03-museum/Seurat_a_sunday.png
+map_Kd C:\\Users\\marce\\Desktop\\Computer Graphics\\Assets01-05\\03-museum\\Seurat_a_sunday.png
 
 newmtl material_10
 Ns 250.000000
@@ -52,7 +52,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd C:/Users/marce/Desktop/Computer Graphics/Assets01-05/03-museum/parquet.jpg
+map_Kd C:\\Users\\marce\\Desktop\\Computer Graphics\\Assets01-05\\03-museum\\parquet.jpg
 
 newmtl material_2
 Ns 250.000000
