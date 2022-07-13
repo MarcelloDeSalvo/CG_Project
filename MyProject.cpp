@@ -315,6 +315,17 @@ class MyProject : public BaseProject {
 		float deltaT = time - lastTime;
 		lastTime = time;
 
+		static float modTime = 0;
+		float mod = 10;
+		modTime = modTime + 0.01f * deltaT;
+		if (modTime >= mod) {
+			modTime = 0;
+		}
+		float ang = abs(sin(modTime / mod * 360.0f));
+
+		std::cout << ang << std::endl;
+
+
 
 		//PLAYER MOVEMENT VARIABLES
 		const float ROT_SPEED = glm::radians(60.0f);
@@ -434,7 +445,7 @@ class MyProject : public BaseProject {
 		}*/
 
 		if (CamPos.x != oldCamPos.x || CamPos.z != oldCamPos.z) {
-			std::cout << CamPos.x << ' ' << CamPos.y << ' ' << CamPos.z << std::endl;
+			//std::cout << CamPos.x << ' ' << CamPos.y << ' ' << CamPos.z << std::endl;
 		}
 		
 
@@ -461,7 +472,7 @@ class MyProject : public BaseProject {
 
 		// Statue
 		UniformBufferObject statueUbo;
-		statueUbo.model = glm::mat4(1.0f);
+		statueUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, ang, 0.0f));
 		statueUbo.view = CamMat;
 		statueUbo.proj = out;
 
@@ -490,8 +501,6 @@ class MyProject : public BaseProject {
 			sizeof(ubo_UI), 0, &data);
 		memcpy(data, &ubo_UI, sizeof(ubo_UI));
 		vkUnmapMemory(device, DSC.uniformBuffersMemory[0][currentImage]);
-
-
 	}
 
 
@@ -522,7 +531,7 @@ class MyProject : public BaseProject {
 		pix = (int)stationMap[stationMapWidth * pixY + pixX];
 
 		if ((int)oldMapPos.x != pixX || (int)oldMapPos.y != pixY) {
-			std::cout << pixX << " " << pixY << " " << x << " " << y << " \t P = " << pix << "\n";
+			//std::cout << pixX << " " << pixY << " " << x << " " << y << " \t P = " << pix << "\n";
 			if (pix == 0) {
 				std::cout << "HIT!" << std::endl;
 			}
