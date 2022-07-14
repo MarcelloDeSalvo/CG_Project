@@ -47,6 +47,24 @@ struct UniformBufferObjectCard {
 	alignas(4) int textureID;
 };
 
+// Skybox
+struct UniformBufferObjectSkybox {
+	alignas(16) glm::mat4 mvpMat;
+	alignas(16) glm::mat4 mMat;
+	alignas(16) glm::mat4 nMat;
+};
+
+// Skybox
+struct SkyBoxModel {
+	const char* ObjFile;
+	const char* TextureFile[6];
+};
+
+const SkyBoxModel SkyBoxToLoad = { "models/SkyBoxCube.obj", 
+	{"textures/sky/bkg1_right.png", "textures/sky/bkg1_left.png", "textures/sky/bkg1_top.png", 
+	"textures/sky/bkg1_bot.png", "textures/sky/bkg1_front.png", "textures/sky/bkg1_back.png"} };
+
+
 // MAIN ! 
 class MyProject : public BaseProject {
 	protected:
@@ -59,6 +77,20 @@ class MyProject : public BaseProject {
 
 	// Pipelines [Shader couples]
 	Pipeline P1;
+
+	// Skybox 
+	DescriptorSetLayout skyBoxDSL;
+	Pipeline skyBoxPipeline;
+	Model skyBox;
+	Texture skyBoxTexture;
+
+
+	VkPipelineLayout SkyBoxPipelineLayout;	// for skybox
+	std::vector<VkBuffer> SkyBoxUniformBuffers;
+	std::vector<VkDeviceMemory> SkyBoxUniformBuffersMemory;
+	// to access uniforms in the pipeline
+	std::vector<VkDescriptorSet> SkyBoxDescriptorSets;
+	
 
 	// Models, textures and Descriptors (values assigned to the uniforms)
 	Model M1;
@@ -94,9 +126,9 @@ class MyProject : public BaseProject {
 		initialBackgroundColor = {0.0f, 0.0f, 0.0f, 1.0f};
 		
 		// Descriptor pool sizes ---------------------------------------------------------------------IMPORTANTE CAMBIARE QUI
-		uniformBlocksInPool = 4;
-		texturesInPool = 8;
-		setsInPool = 4;
+		uniformBlocksInPool = 20;
+		texturesInPool = 20;
+		setsInPool = 20;
 	}
 	
 	// Here you load and setup all your Vulkan objects
@@ -179,6 +211,11 @@ class MyProject : public BaseProject {
 						{2, SAMPLER, 0, &CardSampler}
 			});
 
+		// Skybox
+		skyBoxDSL.initSkybox(this);
+		skyBoxPipeline.init(this, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", { &skyBoxDSL });
+		loadSkyBox();
+
 		//MAP
 		loadMap();
 
@@ -217,8 +254,6 @@ class MyProject : public BaseProject {
 		T1.cleanup();
 		M1.cleanup();
 		P1.cleanup();
-
-
 
 		
 		//TEXT
@@ -304,7 +339,21 @@ class MyProject : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MC.indices.size()), 1, 0, 0, 0);
 		
-
+		// Draws the Skybox
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			skyBoxPipeline.graphicsPipeline);
+		VkBuffer vertexBuffersSk[] = { skyBox.vertexBuffer};
+		VkDeviceSize offsetsSk[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersSk, offsetsSk);
+		vkCmdBindIndexBuffer(commandBuffer, skyBox.indexBuffer, 0,
+			VK_INDEX_TYPE_UINT32);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			skyBoxPipeline.pipelineLayout, 0, 1,
+			&SkyBoxDescriptorSets[currentImage],
+			0, nullptr);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(skyBox.indices.size()), 1, 0, 0, 0);
 	}
 
 	// Here is where you update the uniforms.
@@ -507,6 +556,16 @@ class MyProject : public BaseProject {
 			sizeof(ubo_UI), 0, &data);
 		memcpy(data, &ubo_UI, sizeof(ubo_UI));
 		vkUnmapMemory(device, DSC.uniformBuffersMemory[0][currentImage]);
+
+		// SkyBox uniforms
+		UniformBufferObjectSkybox uboSky{};
+		uboSky.mMat = glm::mat4(1.0f);
+		uboSky.nMat = glm::mat4(1.0f);
+		uboSky.mvpMat = out * glm::mat4(glm::mat3(CamMat));
+		vkMapMemory(device, SkyBoxUniformBuffersMemory[currentImage], 0,
+			sizeof(uboSky), 0, &data);
+		memcpy(data, &uboSky, sizeof(uboSky));
+		vkUnmapMemory(device, SkyBoxUniformBuffersMemory[currentImage]);
 	}
 
 
@@ -557,6 +616,189 @@ class MyProject : public BaseProject {
 			}
 		}
 		return true;
+	}
+
+
+	// Skybox aux functions
+	void createCubicTextureImage(const char* const FName[6], Texture& TD) {
+		int texWidth, texHeight, texChannels;
+		stbi_uc* pixels[6];
+
+		for (int i = 0; i < 6; i++) {
+			pixels[i] = stbi_load(FName[i], &texWidth, &texHeight,
+				&texChannels, STBI_rgb_alpha);
+			if (!pixels[i]) {
+				std::cout << FName[i]<< "\n";
+				throw std::runtime_error("failed to load texture image!");
+			}
+			std::cout << FName[i] << " -> size: " << texWidth
+				<< "x" << texHeight << ", ch: " << texChannels << "\n";
+		}
+
+		VkDeviceSize imageSize = texWidth * texHeight * 4;
+		VkDeviceSize totalImageSize = texWidth * texHeight * 4 * 6;
+		TD.mipLevels = static_cast<uint32_t>(std::floor(
+			std::log2(std::max(texWidth, texHeight)))) + 1;
+
+		VkBuffer stagingBuffer;
+		VkDeviceMemory stagingBufferMemory;
+
+		createBuffer(totalImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			stagingBuffer, stagingBufferMemory);
+		void* data;
+		vkMapMemory(device, stagingBufferMemory, 0, totalImageSize, 0, &data);
+		for (int i = 0; i < 6; i++) {
+			memcpy(static_cast<char*>(data) + imageSize * i, pixels[i], static_cast<size_t>(imageSize));
+		}
+		vkUnmapMemory(device, stagingBufferMemory);
+
+		for (int i = 0; i < 6; i++) {
+			stbi_image_free(pixels[i]);
+		}
+		createSkyBoxImage(texWidth, texHeight, TD.mipLevels, TD.textureImage,
+			TD.textureImageMemory);
+
+		transitionImageLayout(TD.textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, TD.mipLevels, 6);
+		copyBufferToImage(stagingBuffer, TD.textureImage,
+			static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 6);
+
+		generateMipmaps(TD.textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+			texWidth, texHeight, TD.mipLevels, 6);
+
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+	}
+
+	void createSkyBoxImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkImage& image,
+		VkDeviceMemory& imageMemory) {
+		VkImageCreateInfo imageInfo{};
+		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageInfo.imageType = VK_IMAGE_TYPE_2D;
+		imageInfo.extent.width = width;
+		imageInfo.extent.height = height;
+		imageInfo.extent.depth = 1;
+		imageInfo.mipLevels = mipLevels;
+		imageInfo.arrayLayers = 6;
+		imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+		VkResult result = vkCreateImage(device, &imageInfo, nullptr, &image);
+		if (result != VK_SUCCESS) {
+			PrintVkError(result);
+			throw std::runtime_error("failed to create image!");
+		}
+
+		VkMemoryRequirements memRequirements;
+		vkGetImageMemoryRequirements(device, image, &memRequirements);
+
+		VkMemoryAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.allocationSize = memRequirements.size;
+		allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) !=
+			VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate image memory!");
+		}
+
+		vkBindImageMemory(device, image, imageMemory, 0);
+	}
+
+	void createSkyBoxImageView(Texture& TD) {
+		TD.textureImageView = createImageView(TD.textureImage,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			TD.mipLevels,
+			VK_IMAGE_VIEW_TYPE_CUBE, 6);
+	}
+
+	void createSkyBoxDescriptorSets() {
+		std::vector<VkDescriptorSetLayout> layouts(swapChainImages.size(),
+			skyBoxDSL.descriptorSetLayout);
+		VkDescriptorSetAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocInfo.descriptorPool = descriptorPool;
+		allocInfo.descriptorSetCount = static_cast<uint32_t>(swapChainImages.size());
+		allocInfo.pSetLayouts = layouts.data();
+
+		SkyBoxDescriptorSets.resize(swapChainImages.size());
+
+		VkResult result = vkAllocateDescriptorSets(device, &allocInfo,
+			SkyBoxDescriptorSets.data());
+		if (result != VK_SUCCESS) {
+			PrintVkError(result);
+			throw std::runtime_error("failed to allocate Skybox descriptor sets!");
+		}
+
+		for (size_t k = 0; k < swapChainImages.size(); k++) {
+			VkDescriptorBufferInfo bufferInfo{};
+			bufferInfo.buffer = SkyBoxUniformBuffers[k];
+			bufferInfo.offset = 0;
+			bufferInfo.range = sizeof(UniformBufferObject);
+
+			VkDescriptorImageInfo imageInfo{};
+			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			imageInfo.imageView = skyBoxTexture.textureImageView;
+			imageInfo.sampler = skyBoxTexture.textureSampler;
+
+			std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+			descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrites[0].dstSet = SkyBoxDescriptorSets[k];
+			descriptorWrites[0].dstBinding = 0;
+			descriptorWrites[0].dstArrayElement = 0;
+			descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			descriptorWrites[0].descriptorCount = 1;
+			descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+			descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrites[1].dstSet = SkyBoxDescriptorSets[k];
+			descriptorWrites[1].dstBinding = 1;
+			descriptorWrites[1].dstArrayElement = 0;
+			descriptorWrites[1].descriptorType =
+				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			descriptorWrites[1].descriptorCount = 1;
+			descriptorWrites[1].pImageInfo = &imageInfo;
+
+			vkUpdateDescriptorSets(device,
+				static_cast<uint32_t>(descriptorWrites.size()),
+				descriptorWrites.data(), 0, nullptr);
+		}
+	}
+
+	void loadSkyBox() {
+		//loadMesh(SkyBoxToLoad.ObjFile, SkyBox.MD, phongAndSkyBoxVertices);
+		//createVertexBuffer(SkyBox.MD);
+		//createIndexBuffer(SkyBox.MD);
+		skyBox.init(this, SkyBoxToLoad.ObjFile);
+
+
+		createCubicTextureImage(SkyBoxToLoad.TextureFile, skyBoxTexture);
+		createSkyBoxImageView(skyBoxTexture);
+		skyBoxTexture.BP = this;
+		skyBoxTexture.createTextureSampler();
+
+		// Skybox createUniformBuffers 
+		VkDeviceSize bufferSize = sizeof(UniformBufferObjectSkybox);
+		SkyBoxUniformBuffers.resize(swapChainImages.size());
+		SkyBoxUniformBuffersMemory.resize(swapChainImages.size());
+
+		for (size_t i = 0; i < swapChainImages.size(); i++) {
+			createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+				VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				SkyBoxUniformBuffers[i], SkyBoxUniformBuffersMemory[i]);
+		}
+
+		// Skybox descriptor sets
+		createSkyBoxDescriptorSets();
 	}
 };
 
