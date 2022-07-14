@@ -6,8 +6,8 @@
 #define W_HEIGHT 1200
 
 
-const std::string MODEL_PATH = "models/museo_prof.obj";
-const std::string TEXTURE_PATH = "textures/museumLayout.jpg";
+const std::string MODEL_PATH = "models/museo_prof_remake.obj";
+const std::string TEXTURE_PATH = "textures/reamakeLayout.png";
 
 // Mountains
 const std::string MODEL_MOUNTAIN = "models/3dmountains.obj";

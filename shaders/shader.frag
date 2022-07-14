@@ -69,16 +69,16 @@ void main() {
 	// LAMBERT DIFFUSE
 	//vec3 diffuse  = Toon_Diffuse_BRDF(L, N, V, diffColor, 0.2f * diffColor, 0.5f);
 	//OREN DIFFUSE
-	vec3 diffuse  = Oren_Nayar_Diffuse_BRDF(L, N, V, diffColor, 0.5f);
+	vec3 diffuse  = Oren_Nayar_Diffuse_BRDF(L, N, V, diffColor, 1.5f);
 
 
 	// PHONG SPECULAR
-	//vec3 specular = specColor * pow(max(dot(R,V), 0.0f), specPower);
+	vec3 specular = specColor * pow(max(dot(R,V), 0.0f), specPower);
 	//TOON SPECULAR 
-	vec3 specular = Toon_Specular_BRDF(L, N, V, vec3(1,1,1), 0.97f);
+	//vec3 specular = Toon_Specular_BRDF(L, N, V, vec3(1,1,1), 0.97f);
 	// Hemispheric ambient
 	vec3 ambient  = (vec3(0.725f,0.403f, 1.0f) * (1.0f + N.y) + vec3(0.003f,0.803f, 0.996f) * (1.0f - N.y)) * diffColor;
 	
-	outColor = vec4(clamp(ambient + diffuse + specular, vec3(0.0f), vec3(1.0f)), 1.0f);
+	outColor = vec4(clamp(0.5f * ambient + diffuse + specular, vec3(0.0f), vec3(1.0f)), 1.0f);
 }
 
