@@ -6,8 +6,8 @@
 #define W_HEIGHT 1200
 
 
-const std::string MODEL_PATH = "models/museo_prof.obj";
-const std::string TEXTURE_PATH = "textures/museumLayout.jpg";
+const std::string MODEL_PATH = "models/museo_prof_remake.obj";
+const std::string TEXTURE_PATH = "textures/reamakeLayout.png";
 
 // Mountains
 const std::string MODEL_MOUNTAIN = "models/3dmountains.obj";
@@ -21,17 +21,24 @@ const std::string TEXTURE_STATUE = "textures/marble.png";
 const std::string CARD_MODEL_PATH = "models/card.obj";
 
 const std::vector<std::string> CARD_TEXTURE_PATH = {
-	"textures/Painting1.png",
-	"textures/wall.jpg",
-	"textures/parquet.jpg", 
-	"textures/tile.jpg"
+	"textures/Desc/Guernica.png",
+	"textures/Desc/Cezanne.png",
+	"textures/Desc/VanGoghSelf.png",
+	"textures/Desc/QuartoStato.png",
+	"textures/Desc/Seurat.png",
+	"textures/Desc/Colazione.png",
+	"textures/Desc/Colazione.png"
 };
 
 // The uniform buffer object used in this example
-struct GlobalUniformBufferObject {
-	alignas(16) glm::mat4 model;
-	alignas(16) glm::mat4 view;
-	alignas(16) glm::mat4 proj;
+struct GlobalUniformBufferLight {
+	alignas(16) glm::vec3 DIR_light_direction;
+	alignas(16) glm::vec3 DIR_light_color;
+
+	alignas(16) glm::vec3 POINT_light_pos;
+	alignas(16) glm::vec3 POINT_light_direction;
+	alignas(16) glm::vec3 POINT_light_color;
+	alignas(16) glm::vec4 POINT_coneInOutDecayExp;
 };
 
 struct UniformBufferObject {
@@ -74,6 +81,8 @@ class MyProject : public BaseProject {
 	// Descriptor Layouts [what will be passed to the shaders]
 	DescriptorSetLayout DSL1;
 	DescriptorSetLayout DSLCard;
+	DescriptorSetLayout DSLGlobal;
+	DescriptorSet DSGlobal;
 
 	// Pipelines [Shader couples]
 	Pipeline P1;
@@ -135,15 +144,32 @@ class MyProject : public BaseProject {
 	void localInit() {
 		loadPixelMap();
 
+
 		// Descriptor Layouts [what will be passed to the shaders]
+		//GLOBAL
+		DSLGlobal.init(this, {
+			// this array contains the binding:
+			// first  element : the binding number
+			// second element : the time of element (buffer or texture)
+			// third  element : the pipeline stage where it will be used
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS, 1}
+			});
+
+		DSGlobal.init(this, &DSLGlobal, {
+				{0, UNIFORM, sizeof(GlobalUniformBufferLight), nullptr}
+			});
+
+
 		DSL1.init(this, {
 			// this array contains the binding:
 			// first  element : the binding number
 			// second element : the time of element (buffer or texture)
 			// third  element : the pipeline stage where it will be used
-			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT,1},
-			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT,1}
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1},
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1}
 			});
+
+
 
 		DSLCard.init(this, {
 			// this array contains the binding:
@@ -156,10 +182,12 @@ class MyProject : public BaseProject {
 			{2, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1}
 			});
 
+
+
 		// Pipelines [Shader couples]
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
-		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSL1 });
+		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSLGlobal, &DSL1 });
 		// Models, textures and Descriptors (values assigned to the uniforms)
 		M1.init(this, MODEL_PATH);
 		T1.init(this, TEXTURE_PATH);
@@ -239,6 +267,11 @@ class MyProject : public BaseProject {
 
 	// Here you destroy all the objects you created!		
 	void localCleanup() {
+
+		//Global
+		DSLGlobal.cleanup();
+		DSGlobal.cleanup();
+
 		// Mountain
 		mountainDS.cleanup();
 		mountainTexture.cleanup();
@@ -288,9 +321,14 @@ class MyProject : public BaseProject {
 		// property .pipelineLayout of a pipeline contains its layout.
 		// property .descriptorSets of a descriptor set contains its elements.
 		vkCmdBindDescriptorSets(commandBuffer,
-						VK_PIPELINE_BIND_POINT_GRAPHICS,
-						P1.pipelineLayout, 0, 1, &DS1.descriptorSets[currentImage],
-						0, nullptr);
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P1.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
+			0, nullptr);
+
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P1.pipelineLayout, 1, 1, &DS1.descriptorSets[currentImage],
+			0, nullptr);
 						
 		// property .indices.size() of models, contains the number of triangles * 3 of the mesh.
 		vkCmdDrawIndexed(commandBuffer,
@@ -302,10 +340,17 @@ class MyProject : public BaseProject {
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersM, offsetsM);
 		vkCmdBindIndexBuffer(commandBuffer, mountainModel.indexBuffer, 0,
 			VK_INDEX_TYPE_UINT32);
+
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			P1.pipelineLayout, 0, 1, &mountainDS.descriptorSets[currentImage],
+			P1.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
+
 			0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P1.pipelineLayout, 1, 1, &mountainDS.descriptorSets[currentImage],
+			0, nullptr);
+
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(mountainModel.indices.size()), 1, 0, 0, 0);
 
@@ -317,7 +362,11 @@ class MyProject : public BaseProject {
 			VK_INDEX_TYPE_UINT32);
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			P1.pipelineLayout, 0, 1, &statueDS.descriptorSets[currentImage],
+			P1.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P1.pipelineLayout, 1, 1, &statueDS.descriptorSets[currentImage],
 			0, nullptr);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(statueModel.indices.size()), 1, 0, 0, 0);
@@ -380,6 +429,16 @@ class MyProject : public BaseProject {
 
 		std::cout << ang << std::endl;
 
+
+		//LIGHTS GUBO
+		GlobalUniformBufferLight gubo{};
+		gubo.DIR_light_direction = glm::vec3(-0.4830f, 0.8365f, -0.2588f);
+		gubo.DIR_light_color = glm::vec3(0.7f, 0.1f, 0.1f);
+
+		gubo.POINT_light_color = glm::vec4(1.0f);
+		gubo.POINT_light_pos = glm::vec4(3.0f,1.0f,-0.2f,0.0f);
+		gubo.POINT_light_direction = glm::vec3(cos(glm::radians(135.0f)), sin(glm::radians(135.0f)), 0.0f);
+		gubo.POINT_coneInOutDecayExp = glm::vec4(0.9f, 0.92f, 2.0f, 15.0f);
 
 
 		//PLAYER MOVEMENT VARIABLES
@@ -527,17 +586,20 @@ class MyProject : public BaseProject {
 
 		// Statue
 		UniformBufferObject statueUbo;
-		statueUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, ang, 0.0f));
+		statueUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(3.0f, ang, 0.0f));
 		statueUbo.view = CamMat;
 		statueUbo.proj = out;
 
 
 		// Here is where you actually update your uniforms
 		void* data;
+
+		//MAIN (Museum and paintings)
 		vkMapMemory(device, DS1.uniformBuffersMemory[0][currentImage], 0,
 			sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, DS1.uniformBuffersMemory[0][currentImage]);
+
 
 		// Mountain
 		vkMapMemory(device, mountainDS.uniformBuffersMemory[0][currentImage], 0,
@@ -545,17 +607,19 @@ class MyProject : public BaseProject {
 		memcpy(data, &mountainUbo, sizeof(mountainUbo));
 		vkUnmapMemory(device, mountainDS.uniformBuffersMemory[0][currentImage]);
 
+
 		// Statue
 		vkMapMemory(device, statueDS.uniformBuffersMemory[0][currentImage], 0,
 			sizeof(statueUbo), 0, &data);
 		memcpy(data, &statueUbo, sizeof(statueUbo));
 		vkUnmapMemory(device, statueDS.uniformBuffersMemory[0][currentImage]);
 
-
+		//CARD
 		vkMapMemory(device, DSC.uniformBuffersMemory[0][currentImage], 0,
 			sizeof(ubo_UI), 0, &data);
 		memcpy(data, &ubo_UI, sizeof(ubo_UI));
 		vkUnmapMemory(device, DSC.uniformBuffersMemory[0][currentImage]);
+
 
 		// SkyBox uniforms
 		UniformBufferObjectSkybox uboSky{};
@@ -566,6 +630,13 @@ class MyProject : public BaseProject {
 			sizeof(uboSky), 0, &data);
 		memcpy(data, &uboSky, sizeof(uboSky));
 		vkUnmapMemory(device, SkyBoxUniformBuffersMemory[currentImage]);
+
+		//GLOBAL
+		vkMapMemory(device, DSGlobal.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(gubo), 0, &data);
+		memcpy(data, &gubo, sizeof(gubo));
+		vkUnmapMemory(device, DSGlobal.uniformBuffersMemory[0][currentImage]);
+
 	}
 
 
