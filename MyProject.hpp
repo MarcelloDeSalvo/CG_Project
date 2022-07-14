@@ -232,6 +232,7 @@ struct DescriptorSetLayout {
  	VkDescriptorSetLayout descriptorSetLayout;
  	
  	void init(BaseProject *bp, std::vector<DescriptorSetLayoutBinding> B);
+	void initSkybox(BaseProject* bp);
 	void cleanup();
 };
 
@@ -842,18 +843,20 @@ protected:
 	// Lesson 14
 	VkImageView createImageView(VkImage image, VkFormat format,
 								VkImageAspectFlags aspectFlags,
-								uint32_t mipLevels // New in Lesson 23
+								uint32_t mipLevels, 
+								VkImageViewType type = VK_IMAGE_VIEW_TYPE_2D, 
+								int layerCount = 1 // New in Lesson 23
 								) {
 		VkImageViewCreateInfo viewInfo{};
 		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		viewInfo.image = image;
-		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewInfo.viewType = type;
 		viewInfo.format = format;
 		viewInfo.subresourceRange.aspectMask = aspectFlags;
 		viewInfo.subresourceRange.baseMipLevel = 0;
 		viewInfo.subresourceRange.levelCount = mipLevels;
 		viewInfo.subresourceRange.baseArrayLayer = 0;
-		viewInfo.subresourceRange.layerCount = 1;
+		viewInfo.subresourceRange.layerCount = layerCount;
 		VkImageView imageView;
 
 		VkResult result = vkCreateImageView(device, &viewInfo, nullptr,
@@ -1039,7 +1042,7 @@ protected:
 	// New - Lesson 23
 	void generateMipmaps(VkImage image, VkFormat imageFormat,
 						 int32_t texWidth, int32_t texHeight,
-						 uint32_t mipLevels) {
+						 uint32_t mipLevels, int layerCount = 1) {
 		VkFormatProperties formatProperties;
 		vkGetPhysicalDeviceFormatProperties(physicalDevice, imageFormat,
 							&formatProperties);
@@ -1058,7 +1061,7 @@ protected:
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		barrier.subresourceRange.baseArrayLayer = 0;
-		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.layerCount = layerCount;
 		barrier.subresourceRange.levelCount = 1;
 
 		int32_t mipWidth = texWidth;
@@ -1128,7 +1131,7 @@ protected:
 	// New - Lesson 23
 	void transitionImageLayout(VkImage image, VkFormat format,
 					VkImageLayout oldLayout, VkImageLayout newLayout,
-					uint32_t mipLevels) {
+					uint32_t mipLevels, int layersCount = 1) {
 		VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
 		VkImageMemoryBarrier barrier{};
@@ -1143,7 +1146,7 @@ protected:
 		barrier.subresourceRange.baseMipLevel = 0;
 		barrier.subresourceRange.levelCount = mipLevels;
 		barrier.subresourceRange.baseArrayLayer = 0;
-		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.layerCount = layersCount;
 
 		barrier.srcAccessMask = 0;
 		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -1158,7 +1161,7 @@ protected:
 	
 	// New - Lesson 23
 	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t
-						   width, uint32_t height) {
+						   width, uint32_t height, int layerCount = 1) {
 		VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 		
 		VkBufferImageCopy region{};
@@ -1168,7 +1171,7 @@ protected:
 		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		region.imageSubresource.mipLevel = 0;
 		region.imageSubresource.baseArrayLayer = 0;
-		region.imageSubresource.layerCount = 1;
+		region.imageSubresource.layerCount = layerCount;
 		region.imageOffset = {0, 0, 0};
 		region.imageExtent = {width, height, 1};
 		
@@ -1887,7 +1890,7 @@ void Pipeline::init(BaseProject *bp, const std::string& VertShader, const std::s
 			VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	depthStencil.depthTestEnable = VK_TRUE;
 	depthStencil.depthWriteEnable = VK_TRUE;
-	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 	depthStencil.depthBoundsTestEnable = VK_FALSE;
 	depthStencil.minDepthBounds = 0.0f; // Optional
 	depthStencil.maxDepthBounds = 1.0f; // Optional
@@ -1992,6 +1995,40 @@ void DescriptorSetLayout::init(BaseProject *bp, std::vector<DescriptorSetLayoutB
 	if (result != VK_SUCCESS) {
 		PrintVkError(result);
 		throw std::runtime_error("failed to create descriptor set layout!");
+	}
+}
+
+void DescriptorSetLayout::initSkybox(BaseProject* bp) {
+	BP = bp;
+
+	VkDescriptorSetLayoutBinding uboLayoutBinding{};
+	uboLayoutBinding.binding = 0;
+	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding.descriptorCount = 1;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	uboLayoutBinding.pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+	samplerLayoutBinding.binding = 1;
+	samplerLayoutBinding.descriptorType =
+		VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerLayoutBinding.descriptorCount = 1;
+	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	samplerLayoutBinding.pImmutableSamplers = nullptr;
+
+	std::array<VkDescriptorSetLayoutBinding, 2> bindings =
+	{ uboLayoutBinding, samplerLayoutBinding };
+
+	VkDescriptorSetLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+	layoutInfo.pBindings = bindings.data();
+
+	VkResult result = vkCreateDescriptorSetLayout(BP->device, &layoutInfo,
+		nullptr, &descriptorSetLayout);
+	if (result != VK_SUCCESS) {
+		PrintVkError(result);
+		throw std::runtime_error("failed to create SkyBox descriptor set layout!");
 	}
 }
 
