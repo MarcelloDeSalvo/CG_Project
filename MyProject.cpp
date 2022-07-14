@@ -561,7 +561,7 @@ class MyProject : public BaseProject {
 		UniformBufferObjectSkybox uboSky{};
 		uboSky.mMat = glm::mat4(1.0f);
 		uboSky.nMat = glm::mat4(1.0f);
-		uboSky.mvpMat = out * glm::mat4(glm::mat3(CamMat));
+		uboSky.mvpMat = out * glm::mat4(glm::mat3(CamMat)) * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.95f, 0.0f));
 		vkMapMemory(device, SkyBoxUniformBuffersMemory[currentImage], 0,
 			sizeof(uboSky), 0, &data);
 		memcpy(data, &uboSky, sizeof(uboSky));
