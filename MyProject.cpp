@@ -45,10 +45,14 @@ struct GlobalUniformBufferLight {
 	alignas(16) glm::vec4 POINT_coneInOutDecayExp;
 };
 
-struct UniformBufferObject {
-	alignas(16) glm::mat4 model;
+// Models Uniform buffers
+struct GlobalUniformBufferObject {
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
+};
+
+struct UniformBufferObject {
+	alignas(16) glm::mat4 model;
 };
 
 struct UniformBufferObjectCard {
@@ -83,10 +87,16 @@ class MyProject : public BaseProject {
 	std::unordered_map<int, int> pixel_map;
 
 	// Descriptor Layouts [what will be passed to the shaders]
-	DescriptorSetLayout DSL1;
 	DescriptorSetLayout DSLCard;
 	DescriptorSetLayout DSLGlobal;
+
+	DescriptorSetLayout DSLGlobalModels;
+	DescriptorSetLayout DSLObjModels;
+	DescriptorSet DSGlobalModels;
+
 	DescriptorSet DSGlobal;
+
+	
 
 	// Pipelines [Shader couples]
 	Pipeline P1;
@@ -164,13 +174,17 @@ class MyProject : public BaseProject {
 			});
 
 
-		DSL1.init(this, {
+		DSLObjModels.init(this, {
 			// this array contains the binding:
 			// first  element : the binding number
 			// second element : the time of element (buffer or texture)
 			// third  element : the pipeline stage where it will be used
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1},
 			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1}
+			});
+
+		DSLGlobalModels.init(this, {
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS, 1},
 			});
 
 
@@ -191,11 +205,11 @@ class MyProject : public BaseProject {
 		// Pipelines [Shader couples]
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
-		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSLGlobal, &DSL1 });
+		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSLGlobal, &DSLGlobalModels, &DSLObjModels });
 		// Models, textures and Descriptors (values assigned to the uniforms)
 		M1.init(this, MODEL_PATH);
 		T1.init(this, TEXTURE_PATH);
-		DS1.init(this, &DSL1, {
+		DS1.init(this, &DSLObjModels, {
 			// the second parameter, is a pointer to the Uniform Set Layout of this set
 			// the last parameter is an array, with one element per binding of the set.
 			// first  elmenet : the binding number
@@ -209,7 +223,7 @@ class MyProject : public BaseProject {
 		// Mountain
 		mountainModel.init(this, MODEL_MOUNTAIN);
 		mountainTexture.init(this, TEXTURE_MOUNTAIN);
-		mountainDS.init(this, &DSL1, {
+		mountainDS.init(this, &DSLObjModels, {
 				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 				{1, TEXTURE, 0, &mountainTexture}
 			});
@@ -217,9 +231,14 @@ class MyProject : public BaseProject {
 		// Statue
 		statueModel.init(this, MODEL_STATUE);
 		statueTexture.init(this, TEXTURE_STATUE);
-		statueDS.init(this, &DSL1, {
+		statueDS.init(this, &DSLObjModels, {
 				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 				{1, TEXTURE, 0, &statueTexture}
+			});
+
+		// DS Global models
+		DSGlobalModels.init(this, &DSLGlobalModels, {
+				{0, UNIFORM, sizeof(GlobalUniformBufferObject), nullptr}
 			});
 
 
@@ -303,7 +322,9 @@ class MyProject : public BaseProject {
 		MC.cleanup();
 		DSC.cleanup();
 		CardSampler.cleanup();
-		DSL1.cleanup();
+		DSLGlobalModels.cleanup();
+		DSLObjModels.cleanup();
+		DSGlobalModels.cleanup();
 		DSLCard.cleanup();
 	}
 	
@@ -330,9 +351,15 @@ class MyProject : public BaseProject {
 			P1.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
 			0, nullptr);
 
+		// Global Descriptor Set Models binding
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			P1.pipelineLayout, 1, 1, &DS1.descriptorSets[currentImage],
+			P1.pipelineLayout, 1, 1, &DSGlobalModels.descriptorSets[currentImage],
+			0, nullptr);
+
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P1.pipelineLayout, 2, 1, &DS1.descriptorSets[currentImage],
 			0, nullptr);
 						
 		// property .indices.size() of models, contains the number of triangles * 3 of the mesh.
@@ -349,11 +376,17 @@ class MyProject : public BaseProject {
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			P1.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
-
 			0, nullptr);
+
+		// Global Descriptor Set Models binding
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			P1.pipelineLayout, 1, 1, &mountainDS.descriptorSets[currentImage],
+			P1.pipelineLayout, 1, 1, &DSGlobalModels.descriptorSets[currentImage],
+			0, nullptr);
+
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P1.pipelineLayout, 2, 1, &mountainDS.descriptorSets[currentImage],
 			0, nullptr);
 
 		vkCmdDrawIndexed(commandBuffer,
@@ -369,9 +402,15 @@ class MyProject : public BaseProject {
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			P1.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
 			0, nullptr);
+
+		// Global Descriptor Set Models binding
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			P1.pipelineLayout, 1, 1, &statueDS.descriptorSets[currentImage],
+			P1.pipelineLayout, 1, 1, &DSGlobalModels.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			P1.pipelineLayout, 2, 1, &statueDS.descriptorSets[currentImage],
 			0, nullptr);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(statueModel.indices.size()), 1, 0, 0, 0);
@@ -471,7 +510,6 @@ class MyProject : public BaseProject {
 		ubo_UI.textureID = textId;
 
 
-		UniformBufferObject ubo{};
 
 		//CURSOR CAMERA MOVEMENT
 		glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
@@ -570,46 +608,61 @@ class MyProject : public BaseProject {
 			//std::cout << CamPos.x << ' ' << CamPos.y << ' ' << CamPos.z << std::endl;
 		}
 		
+		UniformBufferObject ubo_museum{};
+		GlobalUniformBufferObject gubo_museum{};
 
 		//WORLD MATRIX 
-		ubo.model = glm::mat4(1.0f);
+		ubo_museum.model = glm::mat4(1.0f);
 		
 
 		//CAMERA VIEW MATRIX
 		glm::mat4 CamMat = glm::translate(glm::transpose(glm::mat4(CamDir)), -CamPos);
-		ubo.view = CamMat;
+		gubo_museum.view = CamMat;
 
 		//CAMERA PROJECTION MATRIX 
 		glm::mat4 out = glm::perspective(glm::radians(90.0f), aspect_ratio, 0.1f, 100.0f);
 		out[1][1] *= -1;
-		ubo.proj = out;
+		gubo_museum.proj = out;
 
 		//WVP MATRIX  = Project * View * World		Calculated directly inside shader.vert for the position
 
 		// Mountain
 		UniformBufferObject mountainUbo;
+		GlobalUniformBufferObject mountainGubo;
 		mountainUbo.model = glm::mat4(1.0f);
-		mountainUbo.view = CamMat;
-		mountainUbo.proj = out;
+		mountainGubo.view = CamMat;
+		mountainGubo.proj = out;
 
 		// Statue
 		UniformBufferObject statueUbo;
+		GlobalUniformBufferObject statueGubo;
 		statueUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(3.0f, ang, 0.0f));
-		statueUbo.view = CamMat;
-		statueUbo.proj = out;
+		statueGubo.view = CamMat;
+		statueGubo.proj = out;
 
 
 		// Here is where you actually update your uniforms
 		void* data;
 
 		//MAIN (Museum and paintings)
+		//Global
+		vkMapMemory(device, DSGlobalModels.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(gubo_museum), 0, &data);
+		memcpy(data, &gubo_museum, sizeof(gubo_museum));
+		vkUnmapMemory(device, DSGlobalModels.uniformBuffersMemory[0][currentImage]);
+		//Obj
 		vkMapMemory(device, DS1.uniformBuffersMemory[0][currentImage], 0,
-			sizeof(ubo), 0, &data);
-		memcpy(data, &ubo, sizeof(ubo));
+			sizeof(ubo_museum), 0, &data);
+		memcpy(data, &ubo_museum, sizeof(ubo_museum));
 		vkUnmapMemory(device, DS1.uniformBuffersMemory[0][currentImage]);
 
 
 		// Mountain
+		vkMapMemory(device, DSGlobalModels.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(mountainGubo), 0, &data);
+		memcpy(data, &mountainGubo, sizeof(mountainGubo));
+		vkUnmapMemory(device, DSGlobalModels.uniformBuffersMemory[0][currentImage]);
+
 		vkMapMemory(device, mountainDS.uniformBuffersMemory[0][currentImage], 0,
 			sizeof(mountainUbo), 0, &data);
 		memcpy(data, &mountainUbo, sizeof(mountainUbo));
@@ -617,6 +670,11 @@ class MyProject : public BaseProject {
 
 
 		// Statue
+		vkMapMemory(device, DSGlobalModels.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(statueGubo), 0, &data);
+		memcpy(data, &statueGubo, sizeof(statueGubo));
+		vkUnmapMemory(device, DSGlobalModels.uniformBuffersMemory[0][currentImage]);
+
 		vkMapMemory(device, statueDS.uniformBuffersMemory[0][currentImage], 0,
 			sizeof(statueUbo), 0, &data);
 		memcpy(data, &statueUbo, sizeof(statueUbo));
