@@ -91,7 +91,7 @@ class MyProject : public BaseProject {
 
 	//CAMERA
 	glm::vec3 CamAng = glm::vec3(0.0f, glm::radians(90.0f), 0.0f);	//YAW, PITCH, ROLL
-	glm::vec3 CamPos = glm::vec3(4.0f, 0.7f, 2.0f);
+	glm::vec3 CamPos = glm::vec3(4.0f, 0.8f, 2.0f);
 
 	// Descriptor Layouts [what will be passed to the shaders]
 	DescriptorSetLayout DSLCard;
@@ -482,13 +482,13 @@ class MyProject : public BaseProject {
 		}
 		float ang = abs(sin(modTime / mod * 360.0f));
 
-		std::cout << ang << std::endl;
+
+		//std::cout << ang << std::endl;
 
 
 		//LIGHTS GUBO
 		GlobalUniformBufferLight gubo{};
 		gubo.DIR_light_direction = glm::vec3(0.4830f, 0.8365f, 0.2588f);
-		//gubo.DIR_light_color = glm::vec3(1.0f);
 		gubo.DIR_light_color = glm::vec3(0.96f, 0.76f, 0.86f);
 
 		gubo.SPOT_light_color = glm::vec3(0.09f, 0.24f, 0.71f);
@@ -506,6 +506,9 @@ class MyProject : public BaseProject {
 
 		static double old_xpos = 0, old_ypos = 0;
 		double xpos, ypos;
+		bool isMoving = false;
+
+
 		// Map
 		glm::vec3 oldCamPos = CamPos;
 		float aspect_ratio = swapChainExtent.width / (float)swapChainExtent.height;
@@ -536,16 +539,6 @@ class MyProject : public BaseProject {
 		//KEY PRESS MOVEMENT
 		static float debounce = time;
 
-		static bool xray = false;
-
-		if (glfwGetKey(window, GLFW_KEY_X)) {
-			if (time - debounce > 0.33) {
-				xray = !xray;
-				debounce = time;
-				
-			}
-		}
-
 		if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
 			MOVE_SPEED = 2.5f;
 		}
@@ -568,14 +561,6 @@ class MyProject : public BaseProject {
 		if (glfwGetKey(window, GLFW_KEY_DOWN)) {
 			CamAng.x -= deltaT * ROT_SPEED;
 		}
-		/*
-		* 		if (glfwGetKey(window, GLFW_KEY_Q)) {
-			CamAng.z -= deltaT * ROT_SPEED;
-		}
-		if (glfwGetKey(window, GLFW_KEY_E)) {
-			CamAng.z += deltaT * ROT_SPEED;
-		}
-		*/
 
 
 		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
@@ -586,18 +571,24 @@ class MyProject : public BaseProject {
 		if (glfwGetKey(window, GLFW_KEY_A)) {
 			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
 				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+			isMoving = true;
 		}
 		if (glfwGetKey(window, GLFW_KEY_D)) {
 			CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
 				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)) * deltaT;
+			isMoving = true;
 		}
 		if (glfwGetKey(window, GLFW_KEY_S)) {
 			CamPos += MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
 				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
+			isMoving = true;
 		}
 		if (glfwGetKey(window, GLFW_KEY_W)) {
-			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y,
+			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y, 
 				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
+			isMoving = true;
+			
+
 		}
 		if (glfwGetKey(window, GLFW_KEY_F)) {
 			CamPos -= MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
@@ -610,18 +601,12 @@ class MyProject : public BaseProject {
 			CamPos = oldCamPos;
 		}
 
-		/*if (CamPos.x < -7.5 || CamPos.x > 1.5) {
-			CamPos = oldCamPos;
-		}
 
-		if (CamPos.z < -1.5 || CamPos.z > 3.5) {
-			CamPos = oldCamPos;
-		}*/
+		//WALK ANIMATION
+		float walk = 0.001f * sin(MOVE_SPEED * modTime / mod * 4400.0f) * isMoving;
+		CamPos.y += walk;
 
-		if (CamPos.x != oldCamPos.x || CamPos.z != oldCamPos.z) {
-			//std::cout << CamPos.x << ' ' << CamPos.y << ' ' << CamPos.z << std::endl;
-		}
-		
+
 		UniformBufferObject ubo_museum{};
 		GlobalUniformBufferObject guboObj{};
 
