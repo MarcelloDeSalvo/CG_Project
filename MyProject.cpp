@@ -17,7 +17,7 @@ const std::string TEXTURE_MOUNTAIN = "textures/MyGrid.png";
 const std::string MODEL_STATUE = "models/Venus.obj";
 const std::string TEXTURE_STATUE = "textures/marble.png";
 
-
+//Card
 const std::string CARD_MODEL_PATH = "models/card.obj";
 
 const std::vector<std::string> CARD_TEXTURE_PATH = {
@@ -27,7 +27,11 @@ const std::vector<std::string> CARD_TEXTURE_PATH = {
 	"textures/Desc/QuartoStato.png",
 	"textures/Desc/Seurat.png",
 	"textures/Desc/Colazione.png",
-	"textures/Desc/Colazione.png"
+	"textures/Desc/Montmartre.png",
+	"textures/Desc/Munch.png",
+	"textures/Desc/Notte.png",
+	"textures/Desc/Danza.png",
+	"textures/Desc/Monet.png"
 };
 
 // The uniform buffer object used in this example
@@ -239,6 +243,7 @@ class MyProject : public BaseProject {
 						{2, SAMPLER, 0, &CardSampler}
 			});
 
+
 		// Skybox
 		skyBoxDSL.initSkybox(this);
 		skyBoxPipeline.init(this, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", { &skyBoxDSL });
@@ -443,7 +448,7 @@ class MyProject : public BaseProject {
 
 		//PLAYER MOVEMENT VARIABLES
 		const float ROT_SPEED = glm::radians(60.0f);
-		const float MOVE_SPEED = 1.0f;
+		float MOVE_SPEED = 1.0f;
 		const float MOUSE_RES = 500.0f;
 
 		static double old_xpos = 0, old_ypos = 0;
@@ -489,7 +494,10 @@ class MyProject : public BaseProject {
 			}
 		}
 
-		
+		if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
+			MOVE_SPEED = 2.5f;
+		}
+
 		if (glfwGetKey(window, GLFW_KEY_SPACE) && pix!=255 && pix!=0) {
 			ubo_UI.model = glm::mat4(1);
 			if(pixel_map[pix]<CARD_TEXTURE_PATH.size())

@@ -81,7 +81,7 @@ vec3 point_light_color(vec3 pos) {
 void main() {
 	const vec3  diffColor = texture(texSampler, fragTexCoord).rgb;
 	const float specPower = 150.0f;
-	const float ambientFactor = 0.85f;
+	const float ambientFactor = 0.65f;
 
 	vec3  LightColor = gubo.DIR_light_color;
 	vec3  L = gubo.DIR_light_direction;
