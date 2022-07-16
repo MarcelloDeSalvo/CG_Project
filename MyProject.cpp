@@ -19,6 +19,7 @@ const std::string TEXTURE_MOUNTAIN = "textures/MyGrid.png";
 const std::string CARD_MODEL_PATH = "models/card.obj";
 
 const std::vector<std::string> CARD_TEXTURE_PATH = {
+	"textures/Desc/Venere.png",
 	"textures/Desc/Guernica.png",
 	"textures/Desc/Cezanne.png",
 	"textures/Desc/VanGoghSelf.png",
@@ -317,20 +318,21 @@ class MyProject : public BaseProject {
 	}
 
 	void loadPixelMap() {
-		pixel_map[21] = 0;
-		pixel_map[42] = 1;
-		pixel_map[63] = 2;
-		pixel_map[84] = 3;
-		pixel_map[105] = 4;
-		pixel_map[126] = 5;
-		pixel_map[147] = 6;
-		pixel_map[168] = 7;
-		pixel_map[189] = 8;
-		pixel_map[210] = 9;
-		pixel_map[231] = 10;
+		pixel_map[41] = 0;
+		pixel_map[21] = 1;
+		pixel_map[42] = 2;
+		pixel_map[63] = 3;
+		pixel_map[84] = 4;
+		pixel_map[105] = 5;
+		pixel_map[126] = 6;
+		pixel_map[147] = 7;
+		pixel_map[168] = 8;
+		pixel_map[189] = 9;
+		pixel_map[210] = 10;
+		pixel_map[231] = 11;
 
 		// Statue
-		pixel_map[15] = 11;
+		
 
 	}
 
@@ -604,10 +606,14 @@ class MyProject : public BaseProject {
 			MOVE_SPEED = 2.5f;
 		}
 
+		std::cout << pix << std::endl;
+
 		if (glfwGetKey(window, GLFW_KEY_SPACE) && pix!=255 && pix!=0) {
 			ubo_UI.model = glm::mat4(1);
-			if(pixel_map[pix]<CARD_TEXTURE_PATH.size())
+			if (pixel_map[pix] < CARD_TEXTURE_PATH.size()) {
+				
 				textId = pixel_map[pix];
+			}
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_LEFT)) {

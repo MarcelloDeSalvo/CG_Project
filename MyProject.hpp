@@ -36,7 +36,7 @@
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
 //CARD TEXTURE SIZE
-const int TEXTURE_ARRAY_SIZE = 11;
+const int TEXTURE_ARRAY_SIZE = 12;
 struct PushConstantCard {
 	int ID;
 };
