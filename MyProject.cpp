@@ -2,6 +2,8 @@
 
 #include "MyProject.hpp"
 #include <unordered_map>
+#include "SDL2SoundEffects.h"
+#include "SDL2Music.h"
 #define W_WIDTH 1700
 #define W_HEIGHT 1200
 
@@ -90,8 +92,9 @@ class MyProject : public BaseProject {
 	std::unordered_map<int, int> pixel_map;
 
 	//CAMERA
+	float characterHeight = 0.8f;
 	glm::vec3 CamAng = glm::vec3(0.0f, glm::radians(90.0f), 0.0f);	//YAW, PITCH, ROLL
-	glm::vec3 CamPos = glm::vec3(4.0f, 0.8f, 2.0f);
+	glm::vec3 CamPos = glm::vec3(4.0f, characterHeight, 2.0f);
 
 	// Descriptor Layouts [what will be passed to the shaders]
 	DescriptorSetLayout DSLCard;
@@ -102,6 +105,15 @@ class MyProject : public BaseProject {
 	DescriptorSet DSGlobalModels;
 
 	DescriptorSet DSGlobal;
+
+	// Animations
+	float step = 0.1f;
+	float differentialSign = 0.0f;
+	int soundEffectIndex = 0;
+	SDL2SoundEffects se;
+	SDL2Music sm;
+	bool playPausePressed = false;
+	bool firstPlay = false;
 
 
 	// Pipelines [Shader couples]
@@ -281,7 +293,12 @@ class MyProject : public BaseProject {
 		//MAP
 		loadMap();
 
-		
+		//Load audio
+		se.addSoundEffect("./audio/footstep.wav");
+		se.addSoundEffect("./audio/footstep2.wav");
+
+		sm.addMusicTrack("./audio/Resonance.wav");
+		//sm.playMusicTrack(0);	
 	}
 
 	void loadPixelMap() {
@@ -474,13 +491,13 @@ class MyProject : public BaseProject {
 		float deltaT = time - lastTime;
 		lastTime = time;
 
-		static float modTime = 0;
-		float mod = 10;
-		modTime = modTime + 0.01f * deltaT;
-		if (modTime >= mod) {
-			modTime = 0;
+		static float modTime = -1;
+		float animationCap = 1;
+		modTime = modTime + step * deltaT; // modTime goes from -1 to 1 with speed given by step * deltaT
+		if (modTime >= animationCap || modTime <= -animationCap) {
+			step *= -1;
 		}
-		float ang = abs(sin(modTime / mod * 360.0f));
+		float ang = 0.3f * sin(2 * modTime);
 
 
 		//std::cout << ang << std::endl;
@@ -507,7 +524,6 @@ class MyProject : public BaseProject {
 		static double old_xpos = 0, old_ypos = 0;
 		double xpos, ypos;
 		bool isMoving = false;
-
 
 		// Map
 		glm::vec3 oldCamPos = CamPos;
@@ -597,14 +613,44 @@ class MyProject : public BaseProject {
 			CamPos += MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
 		}
 
+		// Play/pause music
+		bool playPauseCurrentyPressed = (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS);
+		if (!playPausePressed && playPauseCurrentyPressed) { 
+			if (!firstPlay) {
+				sm.playMusicTrack(0);
+				firstPlay = true;
+			} else 
+				sm.Play_Pause();
+		}
+		playPausePressed = playPauseCurrentyPressed;
+
 		if (!canStep(CamPos.x, CamPos.z)) {
 			CamPos = oldCamPos;
 		}
 
 
+
 		//WALK ANIMATION
-		float walk = 0.001f * sin(MOVE_SPEED * modTime / mod * 4400.0f) * isMoving;
-		CamPos.y += walk;
+		float oldCameraHeitgh = CamPos.y;
+		float oldDifferentialSign = differentialSign;
+		
+		float walk_speed = 40.0f;
+		float walk = 0.05f * abs(cos(MOVE_SPEED * walk_speed * modTime)) * isMoving;
+		CamPos.y = characterHeight + walk;
+		
+		if (isMoving) {
+			differentialSign = (CamPos.y - oldCameraHeitgh) >= 0 ? 1.0f : -1.0f;
+
+			if (oldDifferentialSign != differentialSign && CamPos.y <= characterHeight + 0.025f) {
+				std::cout << "Sound!" << std::endl;
+				se.playSoundEffect(soundEffectIndex);
+				soundEffectIndex += 1;
+				if (soundEffectIndex == 2)
+					soundEffectIndex = 0;
+			}
+			
+		}
+
 
 
 		UniformBufferObject ubo_museum{};
