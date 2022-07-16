@@ -19,7 +19,7 @@ const std::string TEXTURE_MOUNTAIN = "textures/MyGrid.png";
 const std::string MODEL_STATUE = "models/Venus.obj";
 const std::string TEXTURE_STATUE = "textures/marble_4.jpg";
 
-//Card
+// Card
 const std::string CARD_MODEL_PATH = "models/card.obj";
 
 const std::vector<std::string> CARD_TEXTURE_PATH = {
@@ -505,7 +505,7 @@ class MyProject : public BaseProject {
 
 		//LIGHTS GUBO
 		GlobalUniformBufferLight gubo{};
-		gubo.DIR_light_direction = glm::vec3(0.4830f, 0.8365f, 0.2588f);
+		gubo.DIR_light_direction = glm::vec3(0.6830f, 0.7365f, 0.2588f);
 		gubo.DIR_light_color = glm::vec3(0.96f, 0.76f, 0.86f);
 
 		gubo.SPOT_light_color = glm::vec3(0.09f, 0.24f, 0.71f);
