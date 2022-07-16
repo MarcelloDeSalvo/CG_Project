@@ -99,7 +99,7 @@ struct Statue_info {
 
 const std::vector<Statue_info> STATUES_INFO = {
 	{ "models/Venus.obj", "textures/marble_4.jpg" },
-	{ "models/aphroborg.obj","textures/aphroborg01.jpeg"}
+	{ "models/heliosbust.obj","textures/helios.png"}
 };
 
 // MAIN ! 
@@ -732,13 +732,15 @@ class MyProject : public BaseProject {
 
 		
 		// Statue
-		
-		statues[0].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(-7.0f, 0.1f, 4.15f))*
-						glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0, 1, 0))*
-						glm::scale(glm::mat4(1.0f), glm::vec3(0.6f));
-		statues[1].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.5f+ang, 0.0f)) *
-			glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1, 0, 0)) *
-			glm::scale(glm::mat4(1.0f), glm::vec3(0.04f));
+		if (statues.size() == 2) {
+			statues[0].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(-7.0f, 0.1f, 4.15f)) *
+				glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0, 1, 0)) *
+				glm::scale(glm::mat4(1.0f), glm::vec3(0.6f));
+
+			statues[1].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(-30.0f, 0.5f + ang, -15.0f)) *
+				glm::rotate(glm::mat4(1.0f), glm::radians(80.0f), glm::vec3(1, 0, 0)) *
+				glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0, 1, 0));
+		}
 
 		int i = 0;
 		for each(Statue s in statues)
