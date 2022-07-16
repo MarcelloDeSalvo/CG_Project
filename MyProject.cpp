@@ -15,9 +15,13 @@ const std::string TEXTURE_PATH = "textures/reamakeLayout.png";
 const std::string MODEL_MOUNTAIN = "models/3dmountains.obj";
 const std::string TEXTURE_MOUNTAIN = "textures/MyGrid.png";
 
-// Statue
+// Statue Venus
 const std::string MODEL_STATUE = "models/Venus.obj";
 const std::string TEXTURE_STATUE = "textures/marble_4.jpg";
+
+// Statue Aphrodite
+const std::string MODEL_APHRODITE = "models/aphroborg.obj";
+const std::string TEXTURE_APHRODITE = "textures/aphroborg01.jpeg";
 
 // Card
 const std::string CARD_MODEL_PATH = "models/card.obj";
@@ -143,11 +147,11 @@ class MyProject : public BaseProject {
 	Texture mountainTexture;
 	DescriptorSet mountainDS;
 
-	// Statue
+	// Statues
 	Pipeline PMarble;
-	Model statueModel;
-	Texture statueTexture;
-	DescriptorSet statueDS;
+	Model statueModel, aphroditeM;
+	Texture statueTexture, aphroditeT;
+	DescriptorSet statueDS, aphroDS;
 
 	// Card pipeline
 	Pipeline PC;
@@ -175,6 +179,8 @@ class MyProject : public BaseProject {
 	
 	// Here you load and setup all your Vulkan objects
 	void localInit() {
+
+		//Maps the painting with a grey scale value as the ID
 		loadPixelMap();
 
 
@@ -256,9 +262,17 @@ class MyProject : public BaseProject {
 
 		// Statue
 		PMarble.init(this, "shaders/MarbleVert.spv", "shaders/MarbleFrag.spv", { &DSLGlobal, &DSLGlobalModels, &DSLObjModels });
+
 		statueModel.init(this, MODEL_STATUE);
 		statueTexture.init(this, TEXTURE_STATUE);
 		statueDS.init(this, &DSLObjModels, {
+				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+				{1, TEXTURE, 0, &statueTexture}
+			});
+
+		aphroditeM.init(this, MODEL_APHRODITE);
+		aphroditeT.init(this, TEXTURE_APHRODITE);
+		aphroDS.init(this, &DSLObjModels, {
 				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 				{1, TEXTURE, 0, &statueTexture}
 			});
@@ -328,10 +342,14 @@ class MyProject : public BaseProject {
 		mountainTexture.cleanup();
 		mountainModel.cleanup();
 
-		// Statue
+		// Statues
 		statueDS.cleanup();
 		statueTexture.cleanup();
 		statueModel.cleanup();
+
+		aphroditeM.cleanup();
+		aphroditeT.cleanup();
+		aphroDS.cleanup();
 
 		//MAIN
 		DS1.cleanup();
@@ -419,7 +437,7 @@ class MyProject : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(mountainModel.indices.size()), 1, 0, 0, 0);
 
-		// Statue
+		// Statues
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PMarble.graphicsPipeline);
 		VkBuffer vertexBuffersS[] = { statueModel.vertexBuffer };
 		VkDeviceSize offsetsS[] = { 0 };
@@ -442,6 +460,29 @@ class MyProject : public BaseProject {
 			0, nullptr);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(statueModel.indices.size()), 1, 0, 0, 0);
+
+		//Aprodite
+		VkBuffer vertexAphroBuffers[] = { aphroditeM.vertexBuffer };
+		VkDeviceSize AphroOffsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexAphroBuffers, AphroOffsets);
+		vkCmdBindIndexBuffer(commandBuffer, aphroditeM.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			PMarble.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
+			0, nullptr);
+
+		// Global Descriptor Set Models binding
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			PMarble.pipelineLayout, 1, 1, &DSGlobalModels.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			PMarble.pipelineLayout, 2, 1, &aphroDS.descriptorSets[currentImage],
+			0, nullptr);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(aphroditeM.indices.size()), 1, 0, 0, 0);
 
 
 		//CARD UI PIPELINE BINDING-----------------------------------------------------------------------------------------------------------------
@@ -677,9 +718,9 @@ class MyProject : public BaseProject {
 
 
 		// Statue
-		UniformBufferObject statueUbo;
+		UniformBufferObject statueUbo, aphroUbo;
 		statueUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(3.0f, ang, 0.0f));
-
+		aphroUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(-4.0f, 2.0f, 2.0f));
 
 		// Here is where you actually update your uniforms
 		void* data;
@@ -701,6 +742,11 @@ class MyProject : public BaseProject {
 
 		// Statue
 		vkMapMemory(device, statueDS.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(statueUbo), 0, &data);
+		memcpy(data, &statueUbo, sizeof(statueUbo));
+		vkUnmapMemory(device, statueDS.uniformBuffersMemory[0][currentImage]);
+
+		vkMapMemory(device, aphroDS.uniformBuffersMemory[0][currentImage], 0,
 			sizeof(statueUbo), 0, &data);
 		memcpy(data, &statueUbo, sizeof(statueUbo));
 		vkUnmapMemory(device, statueDS.uniformBuffersMemory[0][currentImage]);
