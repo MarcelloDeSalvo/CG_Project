@@ -7,21 +7,13 @@
 #define W_WIDTH 1700
 #define W_HEIGHT 1200
 
-
+// Museum
 const std::string MODEL_PATH = "models/museo_prof_remake.obj";
 const std::string TEXTURE_PATH = "textures/reamakeLayout.png";
 
 // Mountains
 const std::string MODEL_MOUNTAIN = "models/3dmountains.obj";
 const std::string TEXTURE_MOUNTAIN = "textures/MyGrid.png";
-
-// Statue Venus
-const std::string MODEL_STATUE = "models/Venus.obj";
-const std::string TEXTURE_STATUE = "textures/marble_4.jpg";
-
-// Statue Aphrodite
-const std::string MODEL_APHRODITE = "models/aphroborg.obj";
-const std::string TEXTURE_APHRODITE = "textures/aphroborg01.jpeg";
 
 // Card
 const std::string CARD_MODEL_PATH = "models/card.obj";
@@ -83,6 +75,15 @@ struct SkyBoxModel {
 	const char* ObjFile;
 	const char* TextureFile[6];
 };
+
+
+// Statue Venus
+const std::string MODEL_STATUE = "models/Venus.obj";
+const std::string TEXTURE_STATUE = "textures/marble_4.jpg";
+
+// Statue Aphrodite
+const std::string MODEL_APHRODITE = "models/aphroborg.obj";
+const std::string TEXTURE_APHRODITE = "textures/aphroborg01.jpeg";
 
 const SkyBoxModel SkyBoxToLoad = { "models/SkyBoxCube.obj", 
 	{"textures/sky/bkg1_right.png", "textures/sky/bkg1_left.png", "textures/sky/bkg1_top.png", 
@@ -719,8 +720,12 @@ class MyProject : public BaseProject {
 
 		// Statue
 		UniformBufferObject statueUbo, aphroUbo;
-		statueUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(3.0f, ang, 0.0f));
-		aphroUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(-4.0f, 2.0f, 2.0f));
+		statueUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(-7.0f, 0.1f, 4.15f)) *
+							glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0, 1, 0)) *
+							glm::scale(glm::mat4(1.0f), glm::vec3(0.6f));
+		aphroUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f,0.5f+ang, 0.0f))*
+						 glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1, 0, 0)) *
+						 glm::scale(glm::mat4(1.0f), glm::vec3(0.04f));
 
 		// Here is where you actually update your uniforms
 		void* data;
@@ -747,9 +752,9 @@ class MyProject : public BaseProject {
 		vkUnmapMemory(device, statueDS.uniformBuffersMemory[0][currentImage]);
 
 		vkMapMemory(device, aphroDS.uniformBuffersMemory[0][currentImage], 0,
-			sizeof(statueUbo), 0, &data);
-		memcpy(data, &statueUbo, sizeof(statueUbo));
-		vkUnmapMemory(device, statueDS.uniformBuffersMemory[0][currentImage]);
+			sizeof(aphroUbo), 0, &data);
+		memcpy(data, &aphroUbo, sizeof(aphroUbo));
+		vkUnmapMemory(device, aphroDS.uniformBuffersMemory[0][currentImage]);
 
 		//CARD
 		vkMapMemory(device, DSC.uniformBuffersMemory[0][currentImage], 0,
