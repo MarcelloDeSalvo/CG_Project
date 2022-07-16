@@ -78,38 +78,51 @@ struct SkyBoxModel {
 };
 
 
-// Statue Venus
-const std::string MODEL_STATUE = "models/Venus.obj";
-const std::string TEXTURE_STATUE = "textures/marble_4.jpg";
-
-// Statue Aphrodite
-const std::string MODEL_APHRODITE = "models/aphroborg.obj";
-const std::string TEXTURE_APHRODITE = "textures/aphroborg01.jpeg";
-
 const SkyBoxModel SkyBoxToLoad = { "models/SkyBoxCube.obj", 
 	{"textures/sky/bkg1_right.png", "textures/sky/bkg1_left.png", "textures/sky/bkg1_top.png", 
 	"textures/sky/bkg1_bot.png", "textures/sky/bkg1_front.png", "textures/sky/bkg1_back.png"} };
 
 
+struct Statue {
+	Model SModel;
+	Texture STexture;
+	DescriptorSet DSS;
+	UniformBufferObject uboStatue;
+};
+
+std::vector<Statue> statues;
+
+struct Statue_info {
+	const std::string model_p;
+	const std::string text_p;
+};
+
+const std::vector<Statue_info> STATUES_INFO = {
+	{ "models/Venus.obj", "textures/marble_4.jpg" },
+	{ "models/aphroborg.obj","textures/aphroborg01.jpeg"}
+};
+
 // MAIN ! 
 class MyProject : public BaseProject {
 	protected:
 	// Here you list all the Vulkan objects you need:
+
+	// HASHMAP
 	std::unordered_map<int, int> pixel_map;
 
-	//CAMERA
+	// CAMERA
 	float characterHeight = 0.8f;
 	glm::vec3 CamAng = glm::vec3(0.0f, glm::radians(90.0f), 0.0f);	//YAW, PITCH, ROLL
 	glm::vec3 CamPos = glm::vec3(4.0f, characterHeight, 2.0f);
 
 	// Descriptor Layouts [what will be passed to the shaders]
-	DescriptorSetLayout DSLCard;
 	DescriptorSetLayout DSLGlobal;
-
 	DescriptorSetLayout DSLGlobalModels;
 	DescriptorSetLayout DSLObjModels;
-	DescriptorSet DSGlobalModels;
+	DescriptorSetLayout DSLCard;
 
+	//Descriptor sets
+	DescriptorSet DSGlobalModels;
 	DescriptorSet DSGlobal;
 
 	// Animations
@@ -151,9 +164,6 @@ class MyProject : public BaseProject {
 
 	// Statues
 	Pipeline PMarble;
-	Model statueModel, aphroditeM;
-	Texture statueTexture, aphroditeT;
-	DescriptorSet statueDS, aphroDS;
 
 	// Card pipeline
 	Pipeline PC;
@@ -265,20 +275,17 @@ class MyProject : public BaseProject {
 		// Statue
 		PMarble.init(this, "shaders/MarbleVert.spv", "shaders/MarbleFrag.spv", { &DSLGlobal, &DSLGlobalModels, &DSLObjModels });
 
-		statueModel.init(this, MODEL_STATUE);
-		statueTexture.init(this, TEXTURE_STATUE);
-		statueDS.init(this, &DSLObjModels, {
+		for (Statue_info i : STATUES_INFO)
+		{	
+			Statue s;
+			s.SModel.init(this, i.model_p);
+			s.STexture.init(this, i.text_p);
+			s.DSS.init(this, &DSLObjModels, {
 				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-				{1, TEXTURE, 0, &statueTexture}
-			});
-
-		aphroditeM.init(this, MODEL_APHRODITE);
-		aphroditeT.init(this, TEXTURE_APHRODITE);
-		aphroDS.init(this, &DSLObjModels, {
-				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-				{1, TEXTURE, 0, &statueTexture}
-			});
-
+				{1, TEXTURE, 0, &s.STexture}
+				});
+			statues.push_back(s);
+		}
 
 		// CARD PIPELINE
 		PC.init(this, "shaders/CardVert.spv", "shaders/CardFrag.spv", { &DSLCard });
@@ -348,14 +355,6 @@ class MyProject : public BaseProject {
 		mountainTexture.cleanup();
 		mountainModel.cleanup();
 
-		// Statues
-		statueDS.cleanup();
-		statueTexture.cleanup();
-		statueModel.cleanup();
-
-		aphroditeM.cleanup();
-		aphroditeT.cleanup();
-		aphroDS.cleanup();
 
 		//MAIN
 		DS1.cleanup();
@@ -363,6 +362,13 @@ class MyProject : public BaseProject {
 		M1.cleanup();
 		P1.cleanup();
 
+		//STATUES
+		for each (Statue s in statues)
+		{
+			s.SModel.cleanup();
+			s.STexture.cleanup();
+			s.DSS.cleanup();
+		}
 		
 		//TEXT
 		PC.cleanup();
@@ -445,50 +451,32 @@ class MyProject : public BaseProject {
 
 		// Statues
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PMarble.graphicsPipeline);
-		VkBuffer vertexBuffersS[] = { statueModel.vertexBuffer };
-		VkDeviceSize offsetsS[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersS, offsetsS);
-		vkCmdBindIndexBuffer(commandBuffer, statueModel.indexBuffer, 0,	VK_INDEX_TYPE_UINT32);
 		
-		vkCmdBindDescriptorSets(commandBuffer,
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			PMarble.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
-			0, nullptr);
+		for each (Statue s in statues)
+		{
+			VkBuffer vertexBuffersS[] = { s.SModel.vertexBuffer };
+			VkDeviceSize offsetsS[] = { 0 };
 
-		// Global Descriptor Set Models binding
-		vkCmdBindDescriptorSets(commandBuffer,
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			PMarble.pipelineLayout, 1, 1, &DSGlobalModels.descriptorSets[currentImage],
-			0, nullptr);
-		vkCmdBindDescriptorSets(commandBuffer,
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			PMarble.pipelineLayout, 2, 1, &statueDS.descriptorSets[currentImage],
-			0, nullptr);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(statueModel.indices.size()), 1, 0, 0, 0);
+			vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersS, offsetsS);
+			vkCmdBindIndexBuffer(commandBuffer, s.SModel.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-		//Aprodite
-		VkBuffer vertexAphroBuffers[] = { aphroditeM.vertexBuffer };
-		VkDeviceSize AphroOffsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexAphroBuffers, AphroOffsets);
-		vkCmdBindIndexBuffer(commandBuffer, aphroditeM.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindDescriptorSets(commandBuffer,
+				VK_PIPELINE_BIND_POINT_GRAPHICS,
+				PMarble.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
+				0, nullptr);
 
-		vkCmdBindDescriptorSets(commandBuffer,
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			PMarble.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
-			0, nullptr);
-
-		// Global Descriptor Set Models binding
-		vkCmdBindDescriptorSets(commandBuffer,
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			PMarble.pipelineLayout, 1, 1, &DSGlobalModels.descriptorSets[currentImage],
-			0, nullptr);
-		vkCmdBindDescriptorSets(commandBuffer,
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			PMarble.pipelineLayout, 2, 1, &aphroDS.descriptorSets[currentImage],
-			0, nullptr);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(aphroditeM.indices.size()), 1, 0, 0, 0);
+			// Global Descriptor Set Models binding
+			vkCmdBindDescriptorSets(commandBuffer,
+				VK_PIPELINE_BIND_POINT_GRAPHICS,
+				PMarble.pipelineLayout, 1, 1, &DSGlobalModels.descriptorSets[currentImage],
+				0, nullptr);
+			vkCmdBindDescriptorSets(commandBuffer,
+				VK_PIPELINE_BIND_POINT_GRAPHICS,
+				PMarble.pipelineLayout, 2, 1, &s.DSS.descriptorSets[currentImage],
+				0, nullptr);
+			vkCmdDrawIndexed(commandBuffer,
+				static_cast<uint32_t>(s.SModel.indices.size()), 1, 0, 0, 0);
+		}
 
 
 		//CARD UI PIPELINE BINDING-----------------------------------------------------------------------------------------------------------------
@@ -702,8 +690,6 @@ class MyProject : public BaseProject {
 			
 		}
 
-
-
 		UniformBufferObject ubo_museum{};
 		GlobalUniformBufferObject guboObj{};
 
@@ -727,15 +713,6 @@ class MyProject : public BaseProject {
 		mountainUbo.model = glm::mat4(1.0f);
 
 
-		// Statue
-		UniformBufferObject statueUbo, aphroUbo;
-		statueUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(-7.0f, 0.1f, 4.15f)) *
-							glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0, 1, 0)) *
-							glm::scale(glm::mat4(1.0f), glm::vec3(0.6f));
-		aphroUbo.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f,0.5f+ang, 0.0f))*
-						 glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1, 0, 0)) *
-						 glm::scale(glm::mat4(1.0f), glm::vec3(0.04f));
-
 		// Here is where you actually update your uniforms
 		void* data;
 
@@ -753,17 +730,27 @@ class MyProject : public BaseProject {
 		memcpy(data, &mountainUbo, sizeof(mountainUbo));
 		vkUnmapMemory(device, mountainDS.uniformBuffersMemory[0][currentImage]);
 
-
+		
 		// Statue
-		vkMapMemory(device, statueDS.uniformBuffersMemory[0][currentImage], 0,
-			sizeof(statueUbo), 0, &data);
-		memcpy(data, &statueUbo, sizeof(statueUbo));
-		vkUnmapMemory(device, statueDS.uniformBuffersMemory[0][currentImage]);
+		
+		statues[0].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(-7.0f, 0.1f, 4.15f))*
+						glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0, 1, 0))*
+						glm::scale(glm::mat4(1.0f), glm::vec3(0.6f));
+		statues[1].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.5f+ang, 0.0f)) *
+			glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1, 0, 0)) *
+			glm::scale(glm::mat4(1.0f), glm::vec3(0.04f));
 
-		vkMapMemory(device, aphroDS.uniformBuffersMemory[0][currentImage], 0,
-			sizeof(aphroUbo), 0, &data);
-		memcpy(data, &aphroUbo, sizeof(aphroUbo));
-		vkUnmapMemory(device, aphroDS.uniformBuffersMemory[0][currentImage]);
+		int i = 0;
+		for each(Statue s in statues)
+		{
+			vkMapMemory(device, s.DSS.uniformBuffersMemory[0][currentImage], 0,
+				sizeof(s.uboStatue.model), 0, &data);
+			memcpy(data, &s.uboStatue.model, sizeof(s.uboStatue.model));
+			vkUnmapMemory(device, s.DSS.uniformBuffersMemory[0][currentImage]);
+			i++;
+		}
+
+
 
 		//CARD
 		vkMapMemory(device, DSC.uniformBuffersMemory[0][currentImage], 0,
