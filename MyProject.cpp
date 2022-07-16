@@ -297,7 +297,7 @@ class MyProject : public BaseProject {
 		se.addSoundEffect("./audio/footstep.wav");
 		se.addSoundEffect("./audio/footstep2.wav");
 
-		sm.addMusicTrack("./audio/Resonance.wav");
+		sm.addMusicTrack("./audio/Resonance2.wav");
 		//sm.playMusicTrack(0);	
 	}
 
@@ -313,6 +313,9 @@ class MyProject : public BaseProject {
 		pixel_map[189] = 8;
 		pixel_map[210] = 9;
 		pixel_map[231] = 10;
+
+		// Statue
+		pixel_map[15] = 11;
 
 	}
 
