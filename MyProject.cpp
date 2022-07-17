@@ -133,6 +133,7 @@ class MyProject : public BaseProject {
 	SDL2Music sm;
 	bool playPausePressed = false;
 	bool firstPlay = false;
+	bool drawCardPressed = false;
 
 
 	// Pipelines [Shader couples]
@@ -319,13 +320,14 @@ class MyProject : public BaseProject {
 		//Load audio
 		se.addSoundEffect("./audio/footstep.wav");
 		se.addSoundEffect("./audio/footstep2.wav");
+		se.addSoundEffect("./audio/paper.wav");
 
 		sm.addMusicTrack("./audio/Resonance2.wav");
 		//sm.playMusicTrack(0);	
 	}
 
 	void loadPixelMap() {
-		pixel_map[41] = 0;
+		pixel_map[13] = 0; // Statue
 		pixel_map[21] = 1;
 		pixel_map[42] = 2;
 		pixel_map[63] = 3;
@@ -337,10 +339,6 @@ class MyProject : public BaseProject {
 		pixel_map[189] = 9;
 		pixel_map[210] = 10;
 		pixel_map[231] = 11;
-
-		// Statue
-		
-
 	}
 
 	// Here you destroy all the objects you created!		
@@ -594,16 +592,24 @@ class MyProject : public BaseProject {
 			MOVE_SPEED = 2.5f;
 		}
 
-		std::cout << pix << std::endl;
+		std::cout << pixel_map[pix] << std::endl;
 
+		bool drawCardCurrentyPressed = (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS);
+		int oldTextId = textId;
 		if (glfwGetKey(window, GLFW_KEY_SPACE) && pix!=255 && pix!=0) {
 			if (pix != 253) { // Hotfix for dispaly card outside museum bug
 				ubo_UI.model = glm::mat4(1);
+
 				if (pixel_map[pix] < CARD_TEXTURE_PATH.size()) {
 					textId = pixel_map[pix];
 				}
+
+				if (oldTextId != textId || (!drawCardPressed && drawCardCurrentyPressed))
+					se.playSoundEffect(2);
 			}
 		}
+		drawCardPressed = drawCardCurrentyPressed;
+
 
 		if (glfwGetKey(window, GLFW_KEY_LEFT)) {
 			CamAng.y += deltaT * ROT_SPEED;
