@@ -134,7 +134,7 @@ class MyProject : public BaseProject {
 	SDL2SoundEffects se;
 	SDL2Music sm;
 	bool playPausePressed = false;
-	bool firstPlay = false;
+	bool firstPlay = true;
 	bool drawCardPressed = false;
 
 
@@ -325,7 +325,7 @@ class MyProject : public BaseProject {
 		se.addSoundEffect("./audio/paper.wav");
 
 		sm.addMusicTrack("./audio/Resonance.wav");
-		//sm.playMusicTrack(0);	
+		sm.playMusicTrack(0);	
 	}
 
 	void loadPixelMap() {
