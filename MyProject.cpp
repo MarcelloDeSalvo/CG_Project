@@ -79,8 +79,8 @@ struct SkyBoxModel {
 
 
 const SkyBoxModel SkyBoxToLoad = { "models/SkyBoxCube.obj", 
-	{"textures/sky/bkg1_right.png", "textures/sky/bkg1_left.png", "textures/sky/bkg1_top.png", 
-	"textures/sky/bkg1_bot.png", "textures/sky/bkg1_front.png", "textures/sky/bkg1_back.png"} };
+	{"textures/sky/right.png", "textures/sky/left.png", "textures/sky/top.png", 
+	"textures/sky/bottom.png", "textures/sky/front.png", "textures/sky/back.png"} };
 
 
 struct Statue {
@@ -99,7 +99,9 @@ struct Statue_info {
 
 const std::vector<Statue_info> STATUES_INFO = {
 	{ "models/Venus.obj", "textures/marble_4.jpg" },
-	{ "models/heliosbust.obj","textures/helios.png"}
+	{ "models/heliosbust.obj","textures/helios.png"},
+	{ "models/stand.obj","textures/marble_4.jpg"},
+	{ "models/flamingo.obj","textures/marble_4.jpg"}
 };
 
 // MAIN ! 
@@ -322,7 +324,7 @@ class MyProject : public BaseProject {
 		se.addSoundEffect("./audio/footstep2.wav");
 		se.addSoundEffect("./audio/paper.wav");
 
-		sm.addMusicTrack("./audio/Resonance2.wav");
+		sm.addMusicTrack("./audio/Resonance.wav");
 		//sm.playMusicTrack(0);	
 	}
 
@@ -530,7 +532,6 @@ class MyProject : public BaseProject {
 		if (modTime >= animationCap || modTime <= -animationCap) {
 			step *= -1;
 		}
-		float ang = 0.3f * sin(2 * modTime);
 
 
 		//std::cout << ang << std::endl;
@@ -592,7 +593,7 @@ class MyProject : public BaseProject {
 			MOVE_SPEED = 2.5f;
 		}
 
-		std::cout << pixel_map[pix] << std::endl;
+		//std::cout << pixel_map[pix] << std::endl;
 
 		bool drawCardCurrentyPressed = (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS);
 		int oldTextId = textId;
@@ -688,7 +689,7 @@ class MyProject : public BaseProject {
 			differentialSign = (CamPos.y - oldCameraHeitgh) >= 0 ? 1.0f : -1.0f;
 
 			if (oldDifferentialSign != differentialSign && CamPos.y <= characterHeight + 0.025f) {
-				std::cout << "Sound!" << std::endl;
+				//std::cout << "Sound!" << std::endl;
 				se.playSoundEffect(soundEffectIndex);
 				soundEffectIndex += 1;
 				if (soundEffectIndex == 2)
@@ -739,14 +740,27 @@ class MyProject : public BaseProject {
 
 		
 		// Statue
-		if (statues.size() == 2) {
+		if (statues.size() == 4) {
+			// Venus
 			statues[0].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(-7.0f, 0.1f, 4.15f)) *
 				glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0, 1, 0)) *
 				glm::scale(glm::mat4(1.0f), glm::vec3(0.6f));
 
-			statues[1].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(-30.0f, 0.5f + ang, -15.0f)) *
+			// Helios
+			statues[1].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(-30.0f, 0.5f + 1.1f * sin(2.5 * modTime), -20.0f)) *
 				glm::rotate(glm::mat4(1.0f), glm::radians(80.0f), glm::vec3(1, 0, 0)) *
 				glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0, 1, 0));
+
+			//TV stand
+			statues[2].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f , 0.0f)) *
+				glm::rotate(glm::mat4(1.0f), glm::radians(150.0f), glm::vec3(0, 1, 0)) *
+				glm::scale(glm::mat4(1.0f), glm::vec3(1.5f));
+
+			// Flamingo
+			statues[3].uboStatue.model = 
+				glm::rotate(glm::mat4(1.0f), glm::radians(10.0f), glm::vec3(0, 0, 1)) * 
+				glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 2.5f + 0.5f * sin(3 * modTime + 1), 5.5f)) *
+				glm::rotate(glm::mat4(1.0f), glm::radians(360.0f * modTime), glm::vec3(0, 1, 0));
 		}
 
 		int i = 0;
@@ -821,7 +835,7 @@ class MyProject : public BaseProject {
 		if ((int)oldMapPos.x != pixX || (int)oldMapPos.y != pixY) {
 			//std::cout << pixX << " " << pixY << " " << x << " " << y << " \t P = " << pix << "\n";
 			if (pix == 0) {
-				std::cout << "HIT!" << std::endl;
+				//std::cout << "HIT!" << std::endl;
 			}
 		}
 

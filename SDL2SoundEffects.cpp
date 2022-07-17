@@ -49,5 +49,5 @@ void SDL2SoundEffects::playSoundEffect(const int which)
 
 	Mix_PlayChannel(-1, mSoundEffectBank[which], 0);
 
-	std::cout << "Played Sound: " << which << '\n';
+	//std::cout << "Played Sound: " << which << '\n';
 }
