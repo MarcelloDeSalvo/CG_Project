@@ -18,6 +18,7 @@ const std::string TEXTURE_MOUNTAIN = "textures/MyGrid.png";
 // Card
 const std::string CARD_MODEL_PATH = "models/card.obj";
 
+// Card Texture Descriptions
 const std::vector<std::string> CARD_TEXTURE_PATH = {
 	"textures/Desc/Venere.png",
 	"textures/Desc/Guernica.png",
@@ -33,7 +34,7 @@ const std::vector<std::string> CARD_TEXTURE_PATH = {
 	"textures/Desc/Monet.png"
 };
 
-// The uniform buffer object used in this example
+// Global Uniform used for lights informations
 struct GlobalUniformBufferLight {
 	alignas(16) glm::vec3 DIR_light_direction;
 	alignas(16) glm::vec3 DIR_light_color;
@@ -47,16 +48,19 @@ struct GlobalUniformBufferLight {
 	alignas(16) glm::vec3 AMB_light_color_down;
 };
 
-// Models Uniform buffers
+// Global Uniform for all objects
 struct GlobalUniformBufferObject {
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
 };
 
+// Model Uniform Buffer
 struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 };
 
+
+// UBO for Card 
 struct UniformBufferObjectCard {
 	alignas(16) glm::mat4 model;
 	alignas(16) glm::mat4 view;
@@ -64,7 +68,7 @@ struct UniformBufferObjectCard {
 	alignas(4) int textureID;
 };
 
-// Skybox
+// UBO for Skybox
 struct UniformBufferObjectSkybox {
 	alignas(16) glm::mat4 mvpMat;
 	alignas(16) glm::mat4 mMat;
@@ -83,6 +87,7 @@ const SkyBoxModel SkyBoxToLoad = { "models/SkyBoxCube.obj",
 	"textures/sky/bottom.png", "textures/sky/front.png", "textures/sky/back.png"} };
 
 
+// Statue 
 struct Statue {
 	Model SModel;
 	Texture STexture;
@@ -90,8 +95,11 @@ struct Statue {
 	UniformBufferObject uboStatue;
 };
 
+
+// Vector of all statues
 std::vector<Statue> statues;
 
+// Statue model and texture paths
 struct Statue_info {
 	const std::string model_p;
 	const std::string text_p;
@@ -107,27 +115,16 @@ const std::vector<Statue_info> STATUES_INFO = {
 // MAIN ! 
 class MyProject : public BaseProject {
 	protected:
-	// Here you list all the Vulkan objects you need:
 
-	// HASHMAP
+	// HASHMAP (Maps the painting with a grey scale value as the ID)
 	std::unordered_map<int, int> pixel_map;
 
-	// CAMERA
+	// CAMERA (Initial pos and angle)
 	float characterHeight = 0.8f;
 	glm::vec3 CamAng = glm::vec3(0.0f, glm::radians(90.0f), 0.0f);	//YAW, PITCH, ROLL
 	glm::vec3 CamPos = glm::vec3(4.0f, characterHeight, 2.0f);
 
-	// Descriptor Layouts [what will be passed to the shaders]
-	DescriptorSetLayout DSLGlobal;
-	DescriptorSetLayout DSLGlobalModels;
-	DescriptorSetLayout DSLObjModels;
-	DescriptorSetLayout DSLCard;
-
-	//Descriptor sets
-	DescriptorSet DSGlobalModels;
-	DescriptorSet DSGlobal;
-
-	// Animations
+	// Animations and audio
 	float step = 0.1f;
 	float differentialSign = 0.0f;
 	int soundEffectIndex = 0;
@@ -137,45 +134,49 @@ class MyProject : public BaseProject {
 	bool firstPlay = true;
 	bool drawCardPressed = false;
 
+	// Pixel map value and current text id (used by Card U.I)
+	int pix = 0, textId = 0;
 
-	// Pipelines [Shader couples]
-	Pipeline P1;
+	// Descriptor Set Layouts [what will be passed to the shaders]
+	DescriptorSetLayout DSLGlobal;			//DSL for global lights 
+	DescriptorSetLayout DSLGlobalModels;	//DSL for global models
+	DescriptorSetLayout DSLObjModels;		//DSL for single models
 
-	// Skybox 
+	DescriptorSetLayout DSLCard;			
 	DescriptorSetLayout skyBoxDSL;
+
+	//Descriptor sets
+	DescriptorSet DSGlobalModels;
+	DescriptorSet DSGlobal;
+
+	DescriptorSet DS1;	
+	DescriptorSet mountainDS;
+	DescriptorSet DSC;
+
+	// Pipelines
+	Pipeline P1; // Pipeline for Museum and Mountains
+	Pipeline PMarble; //Marble for statues
+	Pipeline PC; //Pipeline for card U.I.
+
+	//Custom pipeline for skybox
 	Pipeline skyBoxPipeline;
-	Model skyBox;
-	Texture skyBoxTexture;
-
-
-	VkPipelineLayout SkyBoxPipelineLayout;	// for skybox
 	std::vector<VkBuffer> SkyBoxUniformBuffers;
 	std::vector<VkDeviceMemory> SkyBoxUniformBuffersMemory;
-	// to access uniforms in the pipeline
-	std::vector<VkDescriptorSet> SkyBoxDescriptorSets;
-	
+	std::vector<VkDescriptorSet> SkyBoxDescriptorSets;	// to access uniforms in the pipeline
 
-	// Models, textures and Descriptors (values assigned to the uniforms)
-	Model M1;
+	//Models and textures
+	Model M1; // Museum
 	Texture T1;
-	DescriptorSet DS1;
 
-	// Mountain
-	Model mountainModel;
+	Model mountainModel; // Mountain
 	Texture mountainTexture;
-	DescriptorSet mountainDS;
 
-	// Statues
-	Pipeline PMarble;
+	Model skyBox;	// Skybox 
+	Texture skyBoxTexture;
 
-	// Card pipeline
-	Pipeline PC;
-
-	Model MC;
-	Texture TC[TEXTURE_ARRAY_SIZE];
+	Model MC;	//Card 
+	Texture TC[TEXTURE_ARRAY_SIZE]; // Texture Array for all descriptions
 	Texture CardSampler;
-	DescriptorSet DSC;
-	int pix = 0, textId = 0;
 	
 	
 	// Here you set the main application parameters
@@ -183,155 +184,44 @@ class MyProject : public BaseProject {
 		// window size, titile and initial background
 		windowWidth = W_WIDTH;
 		windowHeight = W_HEIGHT;
-		windowTitle = "My Project";
+		windowTitle = "La fabbrica del Vaporwave";
 		initialBackgroundColor = {0.0f, 0.0f, 0.0f, 1.0f};
 		
-		// Descriptor pool sizes ---------------------------------------------------------------------IMPORTANTE CAMBIARE QUI
-		uniformBlocksInPool = 20;
-		texturesInPool = 20;
-		setsInPool = 20;
+		// Descriptor pool sizes
+		uniformBlocksInPool = 10; // Museum + Mountain + 4*Statue + Skybox + Card + Global OBJ  + Global lights
+		texturesInPool = 24; // Museum + Mountain + 4*Statue + 6*Skybox + 12*Card
+		setsInPool = 10; // Museum + Mountain + 4*Statue + Skybox + Card + Global OBJ  + Global lights
 	}
 	
 	// Here you load and setup all your Vulkan objects
 	void localInit() {
 
-		//Maps the painting with a grey scale value as the ID
+		// Maps the painting with a grey scale value as the ID
 		loadPixelMap();
 
+		// INIT Descriptor Layouts [what will be passed to the shaders]
+		loadDescriptorLayouts();
 
-		// Descriptor Layouts [what will be passed to the shaders]
-		//GLOBAL
-		DSLGlobal.init(this, {
-			// this array contains the binding:
-			// first  element : the binding number
-			// second element : the time of element (buffer or texture)
-			// third  element : the pipeline stage where it will be used
-			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS, 1}
-			});
+		// INIT Models and textures
+		loadModels();
 
-		DSGlobal.init(this, &DSLGlobal, {
-				{0, UNIFORM, sizeof(GlobalUniformBufferLight), nullptr}
-			});
+		// INIT Descriptor Sets
+		loadDescriptorSets();
 
-
-		DSLGlobalModels.init(this, {
-				{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS, 1},
-
-			});
-
-		// DS Global models
-		DSGlobalModels.init(this, &DSLGlobalModels, {
-				{0, UNIFORM, sizeof(GlobalUniformBufferObject), nullptr}
-			});
-
-
-		//OBJECTS
-		DSLObjModels.init(this, {
-			// this array contains the binding:
-			// first  element : the binding number
-			// second element : the time of element (buffer or texture)
-			// third  element : the pipeline stage where it will be used
-			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1},
-			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1}
-			});
-
-
-		DSLCard.init(this, {
-			// this array contains the binding:
-			// first  element : the binding number
-			// second element : the time of element (buffer or texture)
-			// third  element : the pipeline stage where it will be used
-			// fourth  element : #descriptorCount
-			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1},
-			{1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, TEXTURE_ARRAY_SIZE},
-			{2, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1}
-			});
-
-
-
-		// Pipelines [Shader couples]
-		// The last array, is a vector of pointer to the layouts of the sets that will
-		// be used in this pipeline. The first element will be set 0, and so on..
-		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSLGlobal, &DSLGlobalModels, &DSLObjModels });
-		// Models, textures and Descriptors (values assigned to the uniforms)
-		M1.init(this, MODEL_PATH);
-		T1.init(this, TEXTURE_PATH);
-		DS1.init(this, &DSLObjModels, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
-						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-						{1, TEXTURE, 0, &T1}
-			});
-
-		// Mountain
-		mountainModel.init(this, MODEL_MOUNTAIN);
-		mountainTexture.init(this, TEXTURE_MOUNTAIN);
-		mountainDS.init(this, &DSLObjModels, {
-				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-				{1, TEXTURE, 0, &mountainTexture}
-			});
-
-		// Statue
-		PMarble.init(this, "shaders/MarbleVert.spv", "shaders/MarbleFrag.spv", { &DSLGlobal, &DSLGlobalModels, &DSLObjModels });
-
-		for (Statue_info i : STATUES_INFO)
-		{	
-			Statue s;
-			s.SModel.init(this, i.model_p);
-			s.STexture.init(this, i.text_p);
-			s.DSS.init(this, &DSLObjModels, {
-				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-				{1, TEXTURE, 0, &s.STexture}
-				});
-			statues.push_back(s);
-		}
-
-		// CARD PIPELINE
-		PC.init(this, "shaders/CardVert.spv", "shaders/CardFrag.spv", { &DSLCard });
-		//PT.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSL1 }, textVertexDescriptor);
-		MC.init(this, CARD_MODEL_PATH);
-		for (int i= 0; i < TEXTURE_ARRAY_SIZE; i++) {
-			TC[i].init(this, CARD_TEXTURE_PATH[i]);
-		}
-		CardSampler.init(this, TEXTURE_PATH); //We'll only need the sampler of this Texture struct
-		DSC.init(this, &DSLCard, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
-						{0, UNIFORM, sizeof(UniformBufferObjectCard), nullptr},
-						{1, TEXTURE_ARRAY, 0, TC},
-						{2, SAMPLER, 0, &CardSampler}
-			});
-
-
-		// Skybox
-		skyBoxDSL.initSkybox(this);
-		skyBoxPipeline.init(this, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", { &skyBoxDSL });
-		loadSkyBox();
+		// INIT Pipelines
+		loadPipelines();
 
 		//MAP
 		loadMap();
 
 		//Load audio
-		se.addSoundEffect("./audio/footstep.wav");
-		se.addSoundEffect("./audio/footstep2.wav");
-		se.addSoundEffect("./audio/paper.wav");
-
-		sm.addMusicTrack("./audio/Resonance.wav");
-		sm.playMusicTrack(0);	
+		loadAudio();
 	}
 
 	void loadPixelMap() {
 		pixel_map[13] = 0; // Statue
-		pixel_map[21] = 1;
-		pixel_map[42] = 2;
+		pixel_map[21] = 1; // Guernica
+		pixel_map[42] = 2; // etc..
 		pixel_map[63] = 3;
 		pixel_map[84] = 4;
 		pixel_map[105] = 5;
@@ -343,26 +233,158 @@ class MyProject : public BaseProject {
 		pixel_map[231] = 11;
 	}
 
+	void loadDescriptorLayouts() {
+		DSLGlobal.init(this, {
+			// this array contains the binding:
+			// first  element : the binding number
+			// second element : the time of element (buffer or texture)
+			// third  element : the pipeline stage where it will be used
+			// fourth  element : #descriptorCount
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS, 1}
+			});
+
+		DSLGlobalModels.init(this, {
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS, 1},
+			});
+
+		DSLObjModels.init(this, {
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1},
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1}
+			});
+
+		DSLCard.init(this, {
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1},
+			{1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, TEXTURE_ARRAY_SIZE},
+			{2, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1}
+			});
+
+		skyBoxDSL.initSkybox(this);
+	}
+
+	void loadDescriptorSets() {
+		DSGlobal.init(this, &DSLGlobal, {
+			// the second parameter, is a pointer to the Uniform Set Layout of this set
+			// the last parameter is an array, with one element per binding of the set.
+			// first  elmenet : the binding number
+			// second element : UNIFORM or TEXTURE (an enum) depending on the type
+			// third  element : only for UNIFORMs, the size of the corresponding C++ object
+			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object
+				{0, UNIFORM, sizeof(GlobalUniformBufferLight), nullptr}
+			});
+
+		DSGlobalModels.init(this, &DSLGlobalModels, {
+				{0, UNIFORM, sizeof(GlobalUniformBufferObject), nullptr}
+			});
+
+		DS1.init(this, &DSLObjModels, {
+				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+				{1, TEXTURE, 0, &T1}
+			});
+
+		mountainDS.init(this, &DSLObjModels, {
+				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+				{1, TEXTURE, 0, &mountainTexture}
+			});
+
+		DSC.init(this, &DSLCard, {
+				{0, UNIFORM, sizeof(UniformBufferObjectCard), nullptr},
+				{1, TEXTURE_ARRAY, 0, TC},
+				{2, SAMPLER, 0, &CardSampler}
+			});
+	}
+	
+	// Pipelines [Shader couples]
+	// The last array, is a vector of pointer to the layouts of the sets that will
+	// be used in this pipeline. The first element will be set 0, and so on..
+	void loadPipelines() {
+		P1.init(this, "shaders/vert.spv", "shaders/frag.spv", { &DSLGlobal, &DSLGlobalModels, &DSLObjModels });
+		PMarble.init(this, "shaders/MarbleVert.spv", "shaders/MarbleFrag.spv", { &DSLGlobal, &DSLGlobalModels, &DSLObjModels });
+		PC.init(this, "shaders/CardVert.spv", "shaders/CardFrag.spv", { &DSLCard });
+		skyBoxPipeline.init(this, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", { &skyBoxDSL });
+	}
+
+	// Models, textures and Descriptors (values assigned to the uniforms)
+	void loadModels() {
+		
+		M1.init(this, MODEL_PATH);
+		T1.init(this, TEXTURE_PATH);
+
+		// Mountain
+		mountainModel.init(this, MODEL_MOUNTAIN);
+		mountainTexture.init(this, TEXTURE_MOUNTAIN);
+
+		// Card
+		MC.init(this, CARD_MODEL_PATH);
+		for (int i = 0; i < TEXTURE_ARRAY_SIZE; i++) {
+			TC[i].init(this, CARD_TEXTURE_PATH[i]);
+		}
+		CardSampler.init(this, TEXTURE_PATH); //We'll only need the sampler of this Texture struct
+
+		// Statues
+		for (Statue_info i : STATUES_INFO)
+		{
+			Statue s;
+			s.SModel.init(this, i.model_p);
+			s.STexture.init(this, i.text_p);
+			s.DSS.init(this, &DSLObjModels, {
+				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+				{1, TEXTURE, 0, &s.STexture}
+				});
+			statues.push_back(s);
+		}
+
+		// Skybox
+		loadSkyBox();
+	}
+
+	void loadAudio() {
+		se.addSoundEffect("./audio/footstep.wav");
+		se.addSoundEffect("./audio/footstep2.wav");
+		se.addSoundEffect("./audio/paper.wav");
+
+		sm.addMusicTrack("./audio/Resonance.wav");
+		sm.playMusicTrack(0);
+	}
+
 	// Here you destroy all the objects you created!		
 	void localCleanup() {
 
 		//Global
 		DSLGlobal.cleanup();
+		DSLGlobalModels.cleanup();
+		DSLObjModels.cleanup();
+		DSLCard.cleanup();
+		skyBoxDSL.cleanup();
+
+		//Global Descriptor sets
 		DSGlobal.cleanup();
+		DSGlobalModels.cleanup();
+
+		//Pipelines
+		P1.cleanup();
+		PC.cleanup();
+		PMarble.cleanup();
+		skyBoxPipeline.cleanup();
+		
+		//Skybox
+		skyBox.cleanup();
+		skyBoxTexture.cleanup();
+		for (size_t i = 0; i < swapChainImages.size(); i++) {
+			vkDestroyBuffer(device, SkyBoxUniformBuffers[i], nullptr);
+			vkFreeMemory(device, SkyBoxUniformBuffersMemory[i], nullptr);
+		}
 
 		// Mountain
 		mountainDS.cleanup();
 		mountainTexture.cleanup();
 		mountainModel.cleanup();
 
-
-		//MAIN
+		// Museum
 		DS1.cleanup();
 		T1.cleanup();
 		M1.cleanup();
-		P1.cleanup();
 
-		//STATUES
+		// STATUES
 		for each (Statue s in statues)
 		{
 			s.SModel.cleanup();
@@ -370,19 +392,14 @@ class MyProject : public BaseProject {
 			s.DSS.cleanup();
 		}
 		
-		//TEXT
-		PC.cleanup();
+		// Card		
+		DSC.cleanup();
+		MC.cleanup();
 		for (int i = 0; i < TEXTURE_ARRAY_SIZE; i++) {
 			TC[i].cleanup();
 		}
-
-		MC.cleanup();
-		DSC.cleanup();
 		CardSampler.cleanup();
-		DSLGlobalModels.cleanup();
-		DSLObjModels.cleanup();
-		DSGlobalModels.cleanup();
-		DSLCard.cleanup();
+
 	}
 	
 	// Here it is the creation of the command buffer:
@@ -390,12 +407,14 @@ class MyProject : public BaseProject {
 	// with their buffers and textures
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
 	
+	//PIPELINE MUSEUM and MOUNTAINS
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 				P1.graphicsPipeline);
 				
-		VkBuffer vertexBuffers[] = {M1.vertexBuffer};
-		// property .vertexBuffer of models, contains the VkBuffer handle to its vertex buffer
+	   //MUSEUM
+		VkBuffer vertexBuffers[] = {M1.vertexBuffer}; // property .vertexBuffer of models, contains the VkBuffer handle to its vertex buffer
 		VkDeviceSize offsets[] = {0};
+
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 		// property .indexBuffer of models, contains the VkBuffer handle to its index buffer
 		vkCmdBindIndexBuffer(commandBuffer, M1.indexBuffer, 0,
@@ -407,13 +426,10 @@ class MyProject : public BaseProject {
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			P1.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
 			0, nullptr);
-
-		// Global Descriptor Set Models binding
-		vkCmdBindDescriptorSets(commandBuffer,
+		vkCmdBindDescriptorSets(commandBuffer,	// Global Descriptor Set Models binding
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			P1.pipelineLayout, 1, 1, &DSGlobalModels.descriptorSets[currentImage],
 			0, nullptr);
-
 		vkCmdBindDescriptorSets(commandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			P1.pipelineLayout, 2, 1, &DS1.descriptorSets[currentImage],
@@ -423,7 +439,7 @@ class MyProject : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 					static_cast<uint32_t>(M1.indices.size()), 1, 0, 0, 0);
 
-		// Mountain
+	   // MOUNTAIN
 		VkBuffer vertexBuffersM[] = { mountainModel.vertexBuffer };
 		VkDeviceSize offsetsM[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersM, offsetsM);
@@ -449,7 +465,7 @@ class MyProject : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(mountainModel.indices.size()), 1, 0, 0, 0);
 
-		// Statues
+	// PIPELINE MARBLE (Statues)
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PMarble.graphicsPipeline);
 		
 		for each (Statue s in statues)
@@ -460,12 +476,11 @@ class MyProject : public BaseProject {
 			vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersS, offsetsS);
 			vkCmdBindIndexBuffer(commandBuffer, s.SModel.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
+			// Global Descriptors Set binding
 			vkCmdBindDescriptorSets(commandBuffer,
 				VK_PIPELINE_BIND_POINT_GRAPHICS,
 				PMarble.pipelineLayout, 0, 1, &DSGlobal.descriptorSets[currentImage],
 				0, nullptr);
-
-			// Global Descriptor Set Models binding
 			vkCmdBindDescriptorSets(commandBuffer,
 				VK_PIPELINE_BIND_POINT_GRAPHICS,
 				PMarble.pipelineLayout, 1, 1, &DSGlobalModels.descriptorSets[currentImage],
@@ -479,7 +494,7 @@ class MyProject : public BaseProject {
 		}
 
 
-		//CARD UI PIPELINE BINDING-----------------------------------------------------------------------------------------------------------------
+	//PIPELINE CARD UI  
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PC.graphicsPipeline);
 
 		VkBuffer TvertexBuffers[] = { MC.vertexBuffer };
@@ -495,11 +510,12 @@ class MyProject : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MC.indices.size()), 1, 0, 0, 0);
 		
-		// Draws the Skybox
+	//PIPELINE SKYBOX
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			skyBoxPipeline.graphicsPipeline);
 		VkBuffer vertexBuffersSk[] = { skyBox.vertexBuffer};
 		VkDeviceSize offsetsSk[] = { 0 };
+
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersSk, offsetsSk);
 		vkCmdBindIndexBuffer(commandBuffer, skyBox.indexBuffer, 0,
 			VK_INDEX_TYPE_UINT32);
@@ -527,15 +543,13 @@ class MyProject : public BaseProject {
 		lastTime = time;
 
 		static float modTime = -1;
+
+		//ANIMATIONS 
 		float animationCap = 1;
 		modTime = modTime + step * deltaT; // modTime goes from -1 to 1 with speed given by step * deltaT
 		if (modTime >= animationCap || modTime <= -animationCap) {
 			step *= -1;
 		}
-
-
-		//std::cout << ang << std::endl;
-
 
 		//LIGHTS GUBO
 		GlobalUniformBufferLight gubo{};
@@ -559,23 +573,34 @@ class MyProject : public BaseProject {
 		double xpos, ypos;
 		bool isMoving = false;
 
-		// Map
 		glm::vec3 oldCamPos = CamPos;
+
+		//ASPECT RATIO
 		float aspect_ratio = swapChainExtent.width / (float)swapChainExtent.height;
 
-		//CURSOR POSITION
-		glfwGetCursorPos(window, &xpos, &ypos);
-		double m_dx = xpos - old_xpos;
-		double m_dy = ypos - old_ypos;
-		old_xpos = xpos; old_ypos = ypos;
+		//STATIC OBJECTS 
+			// MUSEUM MODEL MATRIX 
+		UniformBufferObject ubo_museum{};
+		ubo_museum.model = glm::mat4(1.0f);
 
-		//UBO
+			// MOUNTAINS
+		UniformBufferObject mountainUbo{};
+		mountainUbo.model = glm::mat4(1.0f);
+
+		//UI
+			//UBO UI CARD
 		UniformBufferObjectCard ubo_UI{};
 		ubo_UI.model = glm::translate(glm::mat4(1), glm::vec3(200, 1, 1));
 		ubo_UI.proj = glm::ortho(-2.0f, 2.0f, -2.0f / aspect_ratio, 2.0f / aspect_ratio, -0.1f, 12.0f);
 		ubo_UI.view = glm::mat4(1.0f);
 		ubo_UI.textureID = textId;
 
+
+		//CURSOR POSITION
+		glfwGetCursorPos(window, &xpos, &ypos);
+		double m_dx = xpos - old_xpos;
+		double m_dy = ypos - old_ypos;
+		old_xpos = xpos; old_ypos = ypos;
 
 
 		//CURSOR CAMERA MOVEMENT
@@ -592,8 +617,6 @@ class MyProject : public BaseProject {
 		if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
 			MOVE_SPEED = 2.5f;
 		}
-
-		//std::cout << pixel_map[pix] << std::endl;
 
 		bool drawCardCurrentyPressed = (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS);
 		int oldTextId = textId;
@@ -625,7 +648,7 @@ class MyProject : public BaseProject {
 			CamAng.x -= deltaT * ROT_SPEED;
 		}
 
-
+		//LOOK IN DIR MAT
 		glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
 						   glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
 						   glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
@@ -650,8 +673,6 @@ class MyProject : public BaseProject {
 			CamPos -= MOVE_SPEED * glm::vec3(glm::rotate(glm::mat4(1.0f), CamAng.y, 
 				glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1)) * deltaT;
 			isMoving = true;
-			
-
 		}
 		if (glfwGetKey(window, GLFW_KEY_F)) {
 			CamPos -= MOVE_SPEED * glm::vec3(0, 1, 0) * deltaT;
@@ -676,7 +697,6 @@ class MyProject : public BaseProject {
 		}
 
 
-
 		//WALK ANIMATION
 		float oldCameraHeitgh = CamPos.y;
 		float oldDifferentialSign = differentialSign;
@@ -689,7 +709,6 @@ class MyProject : public BaseProject {
 			differentialSign = (CamPos.y - oldCameraHeitgh) >= 0 ? 1.0f : -1.0f;
 
 			if (oldDifferentialSign != differentialSign && CamPos.y <= characterHeight + 0.025f) {
-				//std::cout << "Sound!" << std::endl;
 				se.playSoundEffect(soundEffectIndex);
 				soundEffectIndex += 1;
 				if (soundEffectIndex == 2)
@@ -698,14 +717,8 @@ class MyProject : public BaseProject {
 			
 		}
 
-		UniformBufferObject ubo_museum{};
-		GlobalUniformBufferObject guboObj{};
-
-		//WORLD MATRIX 
-		ubo_museum.model = glm::mat4(1.0f);
-		
-
 		//CAMERA VIEW MATRIX
+		GlobalUniformBufferObject guboObj{};
 		glm::mat4 CamMat = glm::translate(glm::transpose(glm::mat4(CamDir)), -CamPos);
 		guboObj.view = CamMat;
 
@@ -713,32 +726,13 @@ class MyProject : public BaseProject {
 		glm::mat4 out = glm::perspective(glm::radians(90.0f), aspect_ratio, 0.1f, 100.0f);
 		out[1][1] *= -1;
 		guboObj.proj = out;
-
-		//WVP MATRIX  = Project * View * World		Calculated directly inside shader.vert for the position
-
-		// Mountain
-		UniformBufferObject mountainUbo;
-		mountainUbo.model = glm::mat4(1.0f);
-
-
-		// Here is where you actually update your uniforms
-		void* data;
-
-		//MAIN (Museum and paintings)
-		//Obj
-		vkMapMemory(device, DS1.uniformBuffersMemory[0][currentImage], 0,
-			sizeof(ubo_museum), 0, &data);
-		memcpy(data, &ubo_museum, sizeof(ubo_museum));
-		vkUnmapMemory(device, DS1.uniformBuffersMemory[0][currentImage]);
-
-
-		// Mountain
-		vkMapMemory(device, mountainDS.uniformBuffersMemory[0][currentImage], 0,
-			sizeof(mountainUbo), 0, &data);
-		memcpy(data, &mountainUbo, sizeof(mountainUbo));
-		vkUnmapMemory(device, mountainDS.uniformBuffersMemory[0][currentImage]);
-
 		
+		// SKYBOX
+		UniformBufferObjectSkybox uboSky{};
+		uboSky.mMat = glm::mat4(1.0f);
+		uboSky.nMat = glm::mat4(1.0f);
+		uboSky.mvpMat = out * glm::mat4(glm::mat3(CamMat)) * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.15f, 0.0f));
+
 		// Statue
 		if (statues.size() == 4) {
 			// Venus
@@ -752,28 +746,42 @@ class MyProject : public BaseProject {
 				glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0, 1, 0));
 
 			//TV stand
-			statues[2].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f , 0.0f)) *
+			statues[2].uboStatue.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) *
 				glm::rotate(glm::mat4(1.0f), glm::radians(150.0f), glm::vec3(0, 1, 0)) *
 				glm::scale(glm::mat4(1.0f), glm::vec3(1.5f));
 
 			// Flamingo
-			statues[3].uboStatue.model = 
-				glm::rotate(glm::mat4(1.0f), glm::radians(10.0f), glm::vec3(0, 0, 1)) * 
+			statues[3].uboStatue.model =
+				glm::rotate(glm::mat4(1.0f), glm::radians(10.0f), glm::vec3(0, 0, 1)) *
 				glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 2.5f + 0.5f * sin(3 * modTime + 1), 5.5f)) *
 				glm::rotate(glm::mat4(1.0f), glm::radians(360.0f * modTime), glm::vec3(0, 1, 0));
 		}
 
-		int i = 0;
+
+		//MAPPING - Here is where you actually update your uniforms
+		void* data;
+
+		//Museum and paintings
+		vkMapMemory(device, DS1.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(ubo_museum), 0, &data);
+		memcpy(data, &ubo_museum, sizeof(ubo_museum));
+		vkUnmapMemory(device, DS1.uniformBuffersMemory[0][currentImage]);
+
+
+		// Mountain
+		vkMapMemory(device, mountainDS.uniformBuffersMemory[0][currentImage], 0,
+			sizeof(mountainUbo), 0, &data);
+		memcpy(data, &mountainUbo, sizeof(mountainUbo));
+		vkUnmapMemory(device, mountainDS.uniformBuffersMemory[0][currentImage]);
+
+		//STATUES
 		for each(Statue s in statues)
 		{
 			vkMapMemory(device, s.DSS.uniformBuffersMemory[0][currentImage], 0,
 				sizeof(s.uboStatue.model), 0, &data);
 			memcpy(data, &s.uboStatue.model, sizeof(s.uboStatue.model));
 			vkUnmapMemory(device, s.DSS.uniformBuffersMemory[0][currentImage]);
-			i++;
 		}
-
-
 
 		//CARD
 		vkMapMemory(device, DSC.uniformBuffersMemory[0][currentImage], 0,
@@ -783,10 +791,6 @@ class MyProject : public BaseProject {
 
 
 		// SkyBox uniforms
-		UniformBufferObjectSkybox uboSky{};
-		uboSky.mMat = glm::mat4(1.0f);
-		uboSky.nMat = glm::mat4(1.0f);
-		uboSky.mvpMat = out * glm::mat4(glm::mat3(CamMat)) * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.15f, 0.0f));
 		vkMapMemory(device, SkyBoxUniformBuffersMemory[currentImage], 0,
 			sizeof(uboSky), 0, &data);
 		memcpy(data, &uboSky, sizeof(uboSky));
@@ -831,13 +835,6 @@ class MyProject : public BaseProject {
 		int pixY = round(fmax(0.0f, fmin(stationMapHeight - 1, (y/5.0f) * stationMapHeight)));
 
 		pix = (int)stationMap[stationMapWidth * pixY + pixX];
-
-		if ((int)oldMapPos.x != pixX || (int)oldMapPos.y != pixY) {
-			//std::cout << pixX << " " << pixY << " " << x << " " << y << " \t P = " << pix << "\n";
-			if (pix == 0) {
-				//std::cout << "HIT!" << std::endl;
-			}
-		}
 
 		oldMapPos.x = pixX;
 		oldMapPos.y = pixY;
@@ -1011,11 +1008,7 @@ class MyProject : public BaseProject {
 	}
 
 	void loadSkyBox() {
-		//loadMesh(SkyBoxToLoad.ObjFile, SkyBox.MD, phongAndSkyBoxVertices);
-		//createVertexBuffer(SkyBox.MD);
-		//createIndexBuffer(SkyBox.MD);
 		skyBox.init(this, SkyBoxToLoad.ObjFile);
-
 
 		createCubicTextureImage(SkyBoxToLoad.TextureFile, skyBoxTexture);
 		createSkyBoxImageView(skyBoxTexture);

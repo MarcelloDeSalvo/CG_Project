@@ -43,9 +43,13 @@ void main() {
 	const float ambientFactor = 0.35f;
 
 	vec3  LightColor = gubo.DIR_light_color;
-	vec3  L = gubo.DIR_light_direction;
 	vec3  SpecColor = gubo.DIR_light_color;
+	
+	// vec3 L : light direction
+	// vec3 N : normal vector
+	// vec3 V : view direction
 
+	vec3 L = gubo.DIR_light_direction;
 	vec3 N = normalize(fragNorm);
 	vec3 R = -reflect(L, N);
 	vec3 V = normalize(fragViewDir);
@@ -57,13 +61,12 @@ void main() {
 	vec3  SPOT_LightColor = spot_light_color(fragPos);
     vec3  SPOT_LightDir = spot_light_dir(fragPos);
 
-	
 	// LAMBERT DIFFUSE
 	diffuse	+= LightColor * diffColor * max(dot(L,N),0);
 	diffuse	+= SPOT_LightColor * diffColor * max(dot(L,N),0);
 
 	// PHONG SPECULAR
-	specular += SpecColor * pow(max(dot(R,V), 0.0f), specPower) ;
+	specular += SpecColor * pow(max(dot(R,V), 0.0f), specPower);
 	specular += SPOT_LightColor * pow(max(dot(R,V), 0.0f), specPower);  
 
 	// Hemispheric ambient

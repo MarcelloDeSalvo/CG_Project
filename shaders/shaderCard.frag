@@ -1,6 +1,6 @@
 #version 450
 
-layout(binding = 1) uniform texture2D textures[8];
+layout(binding = 1) uniform texture2D textures[12];
 layout(binding = 2) uniform sampler samp;
 
 layout(location = 0) in vec3 fragViewDir;
