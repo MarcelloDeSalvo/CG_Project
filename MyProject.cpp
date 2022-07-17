@@ -597,10 +597,11 @@ class MyProject : public BaseProject {
 		std::cout << pix << std::endl;
 
 		if (glfwGetKey(window, GLFW_KEY_SPACE) && pix!=255 && pix!=0) {
-			ubo_UI.model = glm::mat4(1);
-			if (pixel_map[pix] < CARD_TEXTURE_PATH.size()) {
-				
-				textId = pixel_map[pix];
+			if (pix != 253) { // Hotfix for dispaly card outside museum bug
+				ubo_UI.model = glm::mat4(1);
+				if (pixel_map[pix] < CARD_TEXTURE_PATH.size()) {
+					textId = pixel_map[pix];
+				}
 			}
 		}
 
