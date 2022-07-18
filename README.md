@@ -30,3 +30,4 @@ There are 4 main pipelines, each one associated with different shaders:
 ![alt text](https://github.com/MarcelloDeSalvo/CG_Project/blob/b11242a7df3ebea1302a1988d65eb23441b4c927/readme_images/screen1.png)
 ![alt text](https://github.com/MarcelloDeSalvo/CG_Project/blob/0f4bb521f3d91db85618fe1fc7c800c61af9170d/readme_images/screen3.png)
 ![alt text](https://github.com/MarcelloDeSalvo/CG_Project/blob/0f4bb521f3d91db85618fe1fc7c800c61af9170d/readme_images/screen4.png)
+![alt text](https://github.com/MarcelloDeSalvo/CG_Project/blob/1333292aca07fa990c2a1c8e097059e24b7d395e/readme_images/screen5.jpg)
